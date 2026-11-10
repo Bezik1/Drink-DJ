@@ -37,6 +37,8 @@ struct MainMenuView: View {
             }
             Tab("Albums", systemImage: "list.star") {
                 NavigationStack {
+                    AlbumsView()
+                /*
                     List {
                         NavigationLink("Blue Lagoon Dub") {
                             MixerView(mix: MockData.blueLagoonDub)
@@ -53,6 +55,7 @@ struct MainMenuView: View {
                             }
                         }
                     }
+                 */
                 }
             }
         }

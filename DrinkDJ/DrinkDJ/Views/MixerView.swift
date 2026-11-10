@@ -341,3 +341,8 @@ struct MixerView: View {
         )
     }
 }
+#Preview {
+    NavigationStack {
+        MixerView(mix: MockData.newMix)
+    }
+}

@@ -23,6 +23,18 @@ struct Mix {
     var isEmpty: Bool { recipe.isEmpty }
 }
 
+enum AlbumArtwork {
+    case symbol(String)
+    case asset(String)
+}
+
+struct AlbumItem: Identifiable {
+    let id: String
+    let title: String
+    let drinkCount: Int
+    let artwork: AlbumArtwork
+}
+
 enum MockData {
     static let email = "demo@example.com"
     static let password = "drinkdj-demo"
@@ -89,4 +101,39 @@ enum MockData {
             Ingredient(name: "Ginger beer", amount: "40 ml"),
         ]
     )
+    
+    static let profileImageName = "cat_pfp"
+
+    static let albums: [AlbumItem] = [
+        AlbumItem(
+            id: "favourites",
+            title: "Favourites",
+            drinkCount: 23,
+            artwork: .symbol("star")
+        ),
+        AlbumItem(
+            id: "to-check-out",
+            title: "To Check Out",
+            drinkCount: 11,
+            artwork: .symbol("wineglass")
+        ),
+        AlbumItem(
+            id: "your-drinks",
+            title: "Your Drinks",
+            drinkCount: 5,
+            artwork: .symbol("flask")
+        ),
+        AlbumItem(
+            id: "album-1",
+            title: "Album1",
+            drinkCount: 8,
+            artwork: .asset("cat_album1")
+        ),
+        AlbumItem(
+            id: "bitter-ones",
+            title: "Bitter ones",
+            drinkCount: 3,
+            artwork: .asset("cat_album2")
+        )
+    ]
 }
