@@ -35,9 +35,17 @@ struct AlbumItem: Identifiable {
     let artwork: AlbumArtwork
 }
 
+struct AlbumDrink: Identifiable {
+    let id: String
+    let name: String
+    let imageName: String
+}
+
 enum MockData {
     static let email = "demo@example.com"
     static let password = "drinkdj-demo"
+    static let profileName = "Team Sigma"
+    static let profileJoinedDate = "12.10.2026"
 
     static let spirits = ["Gin", "Rum", "Tequila", "Vodka", "Whisky", "Zero-proof"]
     static let likedSpirits: Set<String> = ["Gin"]
@@ -135,5 +143,11 @@ enum MockData {
             drinkCount: 3,
             artwork: .asset("cat_album2")
         )
+    ]
+    
+    static let albumDrinks: [AlbumDrink] = [
+        AlbumDrink(id: "mojito", name: "Mojito", imageName: "drink_mojito"),
+        AlbumDrink(id: "blue-lagoon", name: "Blue Lagoon", imageName: "drink_blue_lagoon"),
+        AlbumDrink(id: "martini", name: "Martini", imageName: "drink_martini")
     ]
 }

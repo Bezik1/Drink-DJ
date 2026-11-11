@@ -41,12 +41,17 @@ struct AlbumsView: View {
 
             Spacer()
 
-            Image(MockData.profileImageName)
-                .resizable()
-                .scaledToFill()
-                .frame(width: 48, height: 48)
-                .clipShape(Circle())
-                .overlay(Circle().stroke(.white.opacity(0.15), lineWidth: 1))
+            NavigationLink {
+                ProfileView()
+            } label: {
+                Image(MockData.profileImageName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 48, height: 48)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(.white.opacity(0.15), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal)
     }
@@ -78,29 +83,15 @@ struct AlbumsView: View {
                     .stroke(.white.opacity(0.14), lineWidth: 1)
             }
 
-            Button(action: {
-                // Add album action goes here.
-            }) {
+            NavigationLink {
+                NewAlbumView()
+            } label: {
                 Image(systemName: "plus")
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 34, height: 34)
-                    .contentShape(Circle())
+                    .frame(width: 20, height: 20)
             }
-            .background {
-                if #available(iOS 26, *) {
-                    Circle()
-                        .fill(.clear)
-                        .glassEffect(.regular, in: .circle)
-                } else {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                }
-            }
-            .overlay {
-                Circle()
-                    .stroke(.white.opacity(0.14), lineWidth: 1)
-            }
+            .glassButtonStyle()
+            .buttonBorderShape(.circle)
         }
         .padding(.horizontal)
     }
