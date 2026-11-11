@@ -24,11 +24,9 @@ struct MainMenuView: View {
     var body: some View {
         TabView {
             Tab("Library", systemImage: "wineglass") {
-                ContentUnavailableView(
-                    "Library",
-                    systemImage: "wineglass",
-                    description: Text("Not part of this prototype yet.")
-                )
+                NavigationStack {
+                    LibraryView()
+                }
             }
             Tab("Mixer", systemImage: "slider.vertical.3") {
                 NavigationStack {

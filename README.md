@@ -12,3 +12,12 @@ Project runs on devices with IOS 27 systems (Preferably IPhone 18 Pro).
 
 ### Preferences Console View
 <img src="./artifacts/images/preferences_view.png">
+
+### Albums List View
+<img src="./artifacts/images/Albums-view.png">
+
+### New Album View
+<img src="./artifacts/images/new-album-view.png">
+
+### Profile View
+<img src="./artifacts/images/profile-view.png">
