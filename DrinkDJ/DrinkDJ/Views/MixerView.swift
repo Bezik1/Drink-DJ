@@ -60,7 +60,9 @@ struct MixerView: View {
                     }
                     DrinkPreview(
                         fill: min(1, max(0.12, Double(totalVolume) / 220)),
-                        tint: drinkTint,
+                        palette: drinkPalette,
+                        flavourNames: flavourNames,
+                        flavourValues: flavours,
                         compact: true
                     )
                     FlavourDeck(
@@ -74,6 +76,7 @@ struct MixerView: View {
                         ChannelDeck(
                             channels: $channels,
                             suggestions: mix.suggestions,
+                            catalog: MockData.libraryIngredients,
                             remember: remember,
                             add: add,
                             remove: remove
@@ -88,7 +91,9 @@ struct MixerView: View {
                 case .finish:
                     DrinkPreview(
                         fill: min(1, max(0.12, Double(totalVolume) / 220)),
-                        tint: drinkTint
+                        palette: drinkPalette,
+                        flavourNames: flavourNames,
+                        flavourValues: flavours
                     )
                     MixSummary(
                         channels: channels,
@@ -143,11 +148,8 @@ struct MixerView: View {
         return max(42, min(98, Int(96 - imbalance * 0.7 + adventure * 6)))
     }
 
-    private var drinkTint: Color {
-        guard let strongest = flavours.indices.max(by: { flavours[$0] < flavours[$1] }) else {
-            return .cyan
-        }
-        return [.pink, .yellow, .orange, .cyan][strongest]
+    private var drinkPalette: DrinkPalette {
+        DrinkPalette(names: flavourNames, values: flavours)
     }
 
     private func remember() {
@@ -555,8 +557,9 @@ private struct PreferenceFader: View {
                 .font(.caption2.bold())
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Slider(value: $value, in: 0...1)
+            Slider(value: $value, in: 0...1, step: 0.1)
                 .tint(tint)
+            DetentScale(steps: 10, tint: tint, selectedStep: Int((value * 10).rounded()))
             HStack {
                 Text(low)
                 Spacer()
@@ -651,28 +654,39 @@ private struct Metric: View {
 
 private struct DrinkPreview: View {
     let fill: Double
-    let tint: Color
+    let palette: DrinkPalette
+    let flavourNames: [String]
+    let flavourValues: [Double]
     var compact = false
 
     var body: some View {
         ZStack {
-            Circle().fill(tint.opacity(0.13)).blur(radius: 24)
+            Circle().fill(palette.primary.opacity(0.2)).blur(radius: 26)
             ZStack(alignment: .bottom) {
                 glassShape.fill(.white.opacity(0.05))
                 glassShape
-                    .fill(LinearGradient(colors: [tint.opacity(0.55), tint], startPoint: .top, endPoint: .bottom))
+                    .fill(
+                        Gradient(colors: [palette.highlight, palette.primary, palette.shadow])
+                            .colorSpace(.perceptual)
+                    )
                     .frame(height: 126 * fill)
                     .padding(5)
             }
             .frame(width: 108, height: 136)
             .overlay { glassShape.stroke(.white.opacity(0.24), lineWidth: 1.5) }
-            .shadow(color: tint.opacity(0.4), radius: 22)
+            .shadow(color: palette.primary.opacity(0.55), radius: 26)
+
+            FlavourParticles(names: flavourNames, values: flavourValues)
+                .frame(width: 190, height: compact ? 118 : 160)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity)
         .frame(height: compact ? 118 : 160)
         .scaleEffect(compact ? 0.72 : 1)
         .padding(.vertical, compact ? -14 : 0)
         .animation(.bouncy, value: fill)
+        .animation(.easeInOut(duration: 0.35), value: palette)
         .accessibilityLabel("Drink preview, \(Int(fill * 100)) percent full")
     }
 
@@ -683,6 +697,217 @@ private struct DrinkPreview: View {
             bottomTrailingRadius: 38,
             topTrailingRadius: 8
         )
+    }
+}
+
+private struct DrinkPalette: Equatable {
+    let hue: Double
+    let saturation: Double
+    let brightness: Double
+
+    var primary: Color {
+        Color(hue: hue, saturation: saturation, brightness: brightness)
+    }
+
+    var highlight: Color {
+        Color(
+            hue: (hue + 0.035).truncatingRemainder(dividingBy: 1),
+            saturation: saturation * 0.72,
+            brightness: min(1, brightness + 0.08)
+        )
+    }
+
+    var shadow: Color {
+        Color(
+            hue: hue,
+            saturation: min(0.78, saturation + 0.08),
+            brightness: brightness * 0.68
+        )
+    }
+
+    init(names: [String], values: [Double]) {
+        let pairs = zip(names, values)
+        var x = 0.0
+        var y = 0.0
+        var weight = 0.0
+
+        for (name, value) in pairs {
+            let normalized = max(0, value)
+            let angle = FlavourColor.hue(for: name) * 2 * Double.pi
+            x += cos(angle) * normalized
+            y += sin(angle) * normalized
+            weight += normalized
+        }
+
+        let resolvedHue = weight > 0 ? atan2(y, x) / (2 * Double.pi) : 0.52
+        hue = resolvedHue < 0 ? resolvedHue + 1 : resolvedHue
+        saturation = min(0.7, 0.48 + weight / 240)
+        brightness = min(0.96, 0.78 + weight / 300)
+    }
+}
+
+private enum FlavourColor {
+    static func hue(for name: String) -> Double {
+        let name = name.lowercased()
+        if name.contains("sweet") || name.contains("fruit") { return 0.94 }
+        if name.contains("sour") { return 0.13 }
+        if name.contains("spicy") { return 0.035 }
+        if name.contains("bitter") { return 0.085 }
+        if name.contains("herbal") { return 0.42 }
+        if name.contains("smoky") { return 0.75 }
+        if name.contains("fizz") { return 0.52 }
+        return 0.55
+    }
+
+    static func color(for name: String) -> Color {
+        Color(hue: hue(for: name), saturation: 0.68, brightness: 0.98)
+    }
+}
+
+private struct FlavourParticles: View {
+    let names: [String]
+    let values: [Double]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { timeline in
+            Canvas { context, size in
+                let time = timeline.date.timeIntervalSinceReferenceDate
+                drawSweetGlow(in: &context, size: size)
+                drawSourPops(in: &context, size: size, time: time)
+                drawSpicySparks(in: &context, size: size, time: time)
+                drawFizz(in: &context, size: size, time: time)
+            }
+        }
+    }
+
+    private var sweet: Double { intensity(matching: "sweet") }
+    private var sour: Double { intensity(matching: "sour") }
+    private var spicy: Double { intensity(matching: "spicy") }
+    private var fizz: Double { intensity(matching: "fizz") }
+
+    private func intensity(matching term: String) -> Double {
+        zip(names, values)
+            .first { $0.0.lowercased().contains(term) }
+            .map { $0.1 } ?? 0
+    }
+
+    private func drawSweetGlow(in context: inout GraphicsContext, size: CGSize) {
+        guard sweet > 2 else { return }
+        context.drawLayer { layer in
+            layer.addFilter(.blur(radius: 8))
+            let diameter = 34 + sweet * 1.8
+            let rect = CGRect(
+                x: size.width * 0.5 - diameter / 2,
+                y: size.height * 0.58 - diameter / 2,
+                width: diameter,
+                height: diameter
+            )
+            layer.fill(Path(ellipseIn: rect), with: .color(.pink.opacity(0.08 + sweet / 180)))
+        }
+    }
+
+    private func drawSourPops(
+        in context: inout GraphicsContext,
+        size: CGSize,
+        time: TimeInterval
+    ) {
+        let count = Int(sour / 3)
+        for index in 0..<count {
+            let pulse = (sin(time * 4 + Double(index) * 1.7) + 1) / 2
+            let diameter = 5 + pulse * 8
+            let x = size.width * (0.22 + Double((index * 37) % 60) / 100)
+            let y = size.height * (0.2 + Double((index * 29) % 55) / 100)
+            let rect = CGRect(x: x, y: y, width: diameter, height: diameter)
+            context.stroke(
+                Path(ellipseIn: rect),
+                with: .color(.yellow.opacity(0.35 + pulse * 0.5)),
+                lineWidth: 1.5
+            )
+        }
+    }
+
+    private func drawSpicySparks(
+        in context: inout GraphicsContext,
+        size: CGSize,
+        time: TimeInterval
+    ) {
+        let count = Int(spicy / 2)
+        let center = CGPoint(x: size.width / 2, y: size.height * 0.55)
+        for index in 0..<count {
+            let angle = Double(index) * 2.4 + time * 0.9
+            let radius = 55 + sin(time * 3 + Double(index)) * 12
+            let start = CGPoint(
+                x: center.x + cos(angle) * radius,
+                y: center.y + sin(angle) * radius * 0.65
+            )
+            let end = CGPoint(
+                x: start.x + cos(angle) * 10,
+                y: start.y + sin(angle) * 10
+            )
+            var path = Path()
+            path.move(to: start)
+            path.addLine(to: end)
+            context.stroke(path, with: .color(.orange.opacity(0.82)), lineWidth: 2)
+        }
+    }
+
+    private func drawFizz(
+        in context: inout GraphicsContext,
+        size: CGSize,
+        time: TimeInterval
+    ) {
+        let count = Int(fizz / 2)
+        for index in 0..<count {
+            let progress = (time * (0.18 + Double(index % 3) * 0.03) + Double(index) * 0.13)
+                .truncatingRemainder(dividingBy: 1)
+            let diameter = 3 + Double(index % 3) * 1.5
+            let x = size.width * (0.3 + Double((index * 23) % 42) / 100)
+            let y = size.height * (0.82 - progress * 0.65)
+            context.fill(
+                Path(ellipseIn: CGRect(x: x, y: y, width: diameter, height: diameter)),
+                with: .color(.cyan.opacity(0.45 + progress * 0.35))
+            )
+        }
+    }
+}
+
+private struct DetentScale: View {
+    let steps: Int
+    let tint: Color
+    let selectedStep: Int
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(0...steps, id: \.self) { index in
+                Capsule()
+                    .fill(index <= selectedStep ? tint : .white.opacity(0.16))
+                    .frame(width: index == 0 || index == steps ? 2 : 1, height: index % 5 == 0 ? 8 : 4)
+                if index < steps { Spacer() }
+            }
+        }
+        .frame(height: 8)
+        .animation(.snappy, value: selectedStep)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct KnobDetents: View {
+    let value: Int
+    let tint: Color
+
+    var body: some View {
+        ZStack {
+            ForEach(0...20, id: \.self) { index in
+                Capsule()
+                    .fill(index <= value ? tint : .white.opacity(0.14))
+                    .frame(width: index % 5 == 0 ? 3 : 2, height: index % 5 == 0 ? 10 : 6)
+                    .offset(y: -52)
+                    .rotationEffect(.degrees(-135 + Double(index) / 20 * 270))
+            }
+        }
+        .animation(.snappy, value: value)
+        .accessibilityHidden(true)
     }
 }
 
@@ -783,6 +1008,7 @@ private struct FlavourDeck: View {
                     MixerKnob(
                         name: names[index],
                         value: $values[index],
+                        tint: FlavourColor.color(for: names[index]),
                         isActive: activeKnob == index,
                         begin: {
                             if activeKnob != index {
@@ -802,6 +1028,7 @@ private struct FlavourDeck: View {
 private struct MixerKnob: View {
     let name: String
     @Binding var value: Double
+    let tint: Color
     let isActive: Bool
     let begin: () -> Void
     let end: () -> Void
@@ -810,29 +1037,45 @@ private struct MixerKnob: View {
     var body: some View {
         VStack(spacing: 8) {
             ZStack {
-                Circle().stroke(.white.opacity(0.09), lineWidth: 9)
+                KnobDetents(value: Int(value), tint: tint)
+                    .frame(width: 114, height: 114)
+
+                Circle()
+                    .stroke(.white.opacity(0.09), lineWidth: 10)
+                    .frame(width: 92, height: 92)
                 Circle()
                     .trim(from: 0, to: value / 20)
                     .stroke(
-                        AngularGradient(colors: [.cyan, .purple, .pink], center: .center),
-                        style: StrokeStyle(lineWidth: 9, lineCap: .round)
+                        AngularGradient(colors: [tint.opacity(0.35), tint, .white], center: .center),
+                        style: StrokeStyle(lineWidth: 10, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
+                    .frame(width: 92, height: 92)
                 Circle()
-                    .fill(RadialGradient(colors: [.white.opacity(0.18), .black], center: .topLeading, startRadius: 0, endRadius: 48))
-                    .padding(12)
+                    .fill(
+                        RadialGradient(
+                            colors: [tint.opacity(0.45), .black.opacity(0.96)],
+                            center: .topLeading,
+                            startRadius: 0,
+                            endRadius: 52
+                        )
+                    )
+                    .frame(width: 70, height: 70)
                     .overlay {
                         Capsule()
-                            .fill(.white)
-                            .frame(width: 3, height: 20)
-                            .offset(y: -20)
+                            .fill(tint)
+                            .frame(width: 4, height: 22)
+                            .offset(y: -21)
                             .rotationEffect(.degrees(-135 + value / 20 * 270))
                     }
-                    .shadow(color: isActive ? .cyan.opacity(0.8) : .clear, radius: 12)
+                    .shadow(color: tint.opacity(isActive ? 0.95 : 0.35), radius: isActive ? 18 : 8)
                 Text(value, format: .number.precision(.fractionLength(0)))
-                    .font(.caption.monospacedDigit().bold())
+                    .font(.headline.monospacedDigit().bold())
+                    .contentTransition(.numericText())
             }
-            .frame(width: 88, height: 88)
+            .frame(width: 118, height: 118)
+            .scaleEffect(isActive ? 1.07 : 1)
+            .animation(.bouncy, value: isActive)
             .contentShape(Circle())
             .gesture(
                 DragGesture(minimumDistance: 0)
@@ -841,7 +1084,7 @@ private struct MixerKnob: View {
                             startingValue = value
                             begin()
                         }
-                        value = min(20, max(0, startingValue - gesture.translation.height / 5))
+                        value = min(20, max(0, startingValue - gesture.translation.height / 5)).rounded()
                     }
                     .onEnded { _ in end() }
             )
@@ -871,8 +1114,9 @@ private struct Crossfader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             DeckTitle(title: "CROSSFADER", detail: "How far should we push it?")
-            Slider(value: $value, in: 0...1, onEditingChanged: { if $0 { remember() } })
+            Slider(value: $value, in: 0...1, step: 0.1, onEditingChanged: { if $0 { remember() } })
                 .tint(.pink)
+            DetentScale(steps: 10, tint: .pink, selectedStep: Int((value * 10).rounded()))
             HStack {
                 Label("Familiar", systemImage: "record.circle")
                 Spacer()
@@ -888,9 +1132,11 @@ private struct Crossfader: View {
 private struct ChannelDeck: View {
     @Binding var channels: [MixerChannel]
     let suggestions: [Ingredient]
+    let catalog: [String]
     let remember: () -> Void
     let add: (Ingredient) -> Void
     let remove: (String) -> Void
+    @State private var showsIngredientPicker = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -910,29 +1156,144 @@ private struct ChannelDeck: View {
                     )
                 }
             }
-            if !suggestions.isEmpty {
+            if !availableSuggestions.isEmpty {
+                DeckTitle(title: "SUGGESTED TO ADD", detail: "One tap")
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(suggestions) { ingredient in
+                    HStack(spacing: 10) {
+                        ForEach(availableSuggestions) { ingredient in
                             Button { add(ingredient) } label: {
-                                Label(ingredient.name, systemImage: "plus")
+                                SuggestionIngredientCard(
+                                    name: ingredient.name,
+                                    amount: ingredient.amount
+                                )
                             }
-                            .buttonStyle(.bordered)
-                            .tint(.cyan)
-                            .disabled(channels.contains { $0.name == ingredient.name })
+                            .buttonStyle(.plain)
                         }
                     }
                 }
-            } else {
-                Button(action: {}) {
-                    Label("Add ingredient", systemImage: "plus")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.cyan)
             }
+
+            Button {
+                showsIngredientPicker = true
+            } label: {
+                Label("Browse all ingredients", systemImage: "plus.circle.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .tint(.cyan)
         }
         .consolePanel()
+        .sheet(isPresented: $showsIngredientPicker) {
+            IngredientPicker(
+                ingredients: catalog,
+                selectedNames: Set(channels.map(\.name))
+            ) { name in
+                add(Ingredient(name: name, amount: "15 ml"))
+            }
+        }
+    }
+
+    private var availableSuggestions: [Ingredient] {
+        suggestions.filter { suggestion in
+            !channels.contains { $0.name == suggestion.name }
+        }
+    }
+}
+
+private struct SuggestionIngredientCard: View {
+    let name: String
+    let amount: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack {
+                Circle()
+                    .fill(MixerChannel.tint(forIngredientNamed: name))
+                    .frame(width: 9, height: 9)
+                    .shadow(color: MixerChannel.tint(forIngredientNamed: name), radius: 4)
+                Spacer()
+                Image(systemName: "plus.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.white, .cyan)
+            }
+            Spacer(minLength: 4)
+            Text(name)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+            Text(amount)
+                .font(.caption)
+                .foregroundStyle(.cyan)
+        }
+        .padding(12)
+        .frame(width: 126, height: 116)
+        .background(.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 17))
+        .overlay {
+            RoundedRectangle(cornerRadius: 17)
+                .stroke(.white.opacity(0.12), lineWidth: 1)
+        }
+    }
+}
+
+private struct IngredientPicker: View {
+    let ingredients: [String]
+    let selectedNames: Set<String>
+    let select: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var searchText = ""
+
+    var body: some View {
+        NavigationStack {
+            List(filteredIngredients, id: \.self) { ingredient in
+                IngredientPickerRow(
+                    name: ingredient,
+                    isSelected: selectedNames.contains(ingredient)
+                ) {
+                    select(ingredient)
+                }
+            }
+            .searchable(text: $searchText, prompt: "Search ingredients")
+            .navigationTitle("Add ingredient")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var filteredIngredients: [String] {
+        guard !searchText.isEmpty else { return ingredients }
+        return ingredients.filter { $0.localizedCaseInsensitiveContains(searchText) }
+    }
+}
+
+private struct IngredientPickerRow: View {
+    let name: String
+    let isSelected: Bool
+    let select: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(MixerChannel.tint(forIngredientNamed: name))
+                .frame(width: 10, height: 10)
+            Text(name)
+            Spacer()
+            if isSelected {
+                Label("Added", systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Button("Add", action: select)
+                    .buttonStyle(.bordered)
+                    .tint(.cyan)
+            }
+        }
     }
 }
 
@@ -1118,7 +1479,7 @@ private struct MixerChannel: Identifiable, Equatable {
         self.amount = amount
         self.unit = unit
         self.isSpirit = isSpirit
-        tint = isSpirit ? .cyan : Self.tint(for: name.lowercased())
+        tint = isSpirit ? .cyan : Self.tint(forIngredientNamed: name)
     }
 
     init(ingredient: Ingredient) {
@@ -1131,10 +1492,11 @@ private struct MixerChannel: Identifiable, Equatable {
         let lowercasedName = ingredient.name.lowercased()
         isSpirit = ["gin", "rum", "vodka", "tequila", "whisky", "whiskey", "bourbon", "liqueur"]
             .contains { lowercasedName.contains($0) }
-        tint = isSpirit ? .cyan : Self.tint(for: lowercasedName)
+        tint = isSpirit ? .cyan : Self.tint(forIngredientNamed: lowercasedName)
     }
 
-    private static func tint(for name: String) -> Color {
+    static func tint(forIngredientNamed name: String) -> Color {
+        let name = name.lowercased()
         if name.contains("lemon") || name.contains("lime") { return .yellow }
         if name.contains("mint") || name.contains("basil") { return .green }
         if name.contains("berry") || name.contains("grenadine") { return .pink }
