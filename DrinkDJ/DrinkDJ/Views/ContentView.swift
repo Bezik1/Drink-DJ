@@ -20,22 +20,44 @@ struct ContentView: View {
 
 struct MainMenuView: View {
     @Binding var session: Session
+    @State private var selectedTab = MainTab.home
+    @State private var librarySearchActivationID = 0
+    @State private var selectedMix = MockData.newMix
 
     var body: some View {
-        TabView {
-            Tab("Library", systemImage: "wineglass") {
-                ContentUnavailableView(
-                    "Library",
-                    systemImage: "wineglass",
-                    description: Text("Not part of this prototype yet.")
-                )
-            }
-            Tab("Mixer", systemImage: "slider.vertical.3") {
+        TabView(selection: $selectedTab) {
+            Tab("Home", systemImage: "house.fill", value: .home) {
                 NavigationStack {
-                    MixerView(mix: MockData.newMix)
+                    LibraryView(
+                        mode: .home,
+                        searchActivationID: 0,
+                        openLibrary: openLibrarySearch,
+                        openMixer: openMixer,
+                        openAlbums: openAlbums
+                    )
                 }
             }
-            Tab("Albums", systemImage: "list.star") {
+
+            Tab("Library", systemImage: "wineglass", value: .library) {
+                NavigationStack {
+                    LibraryView(
+                        mode: .library,
+                        searchActivationID: librarySearchActivationID,
+                        openLibrary: {},
+                        openMixer: openMixer,
+                        openAlbums: openAlbums
+                    )
+                }
+            }
+
+            Tab("Mixer", systemImage: "slider.vertical.3", value: .mixer) {
+                NavigationStack {
+                    MixerView(mix: selectedMix)
+                        .id(selectedMix.name)
+                }
+            }
+
+            Tab("Albums", systemImage: "list.star", value: .albums) {
                 NavigationStack {
                     AlbumsView()
                 /*
@@ -60,6 +82,27 @@ struct MainMenuView: View {
             }
         }
     }
+
+    private func openLibrarySearch() {
+        selectedTab = .library
+        librarySearchActivationID += 1
+    }
+
+    private func openMixer(_ mix: Mix) {
+        selectedMix = mix
+        selectedTab = .mixer
+    }
+
+    private func openAlbums() {
+        selectedTab = .albums
+    }
+}
+
+private enum MainTab: Hashable {
+    case home
+    case library
+    case mixer
+    case albums
 }
 
 #Preview {

@@ -26,7 +26,7 @@ struct AlbumsView: View {
     }
 
     private var headerSection: some View {
-        HStack(alignment: .center) {
+        HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("YOUR COLLECTION")
                     .font(.caption2)
@@ -41,17 +41,7 @@ struct AlbumsView: View {
 
             Spacer()
 
-            NavigationLink {
-                ProfileView()
-            } label: {
-                Image(MockData.profileImageName)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 48, height: 48)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(.white.opacity(0.15), lineWidth: 1))
-            }
-            .buttonStyle(.plain)
+            AccountButton()
         }
         .padding(.horizontal)
     }
