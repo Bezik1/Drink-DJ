@@ -111,7 +111,12 @@ struct AlbumsView: View {
             } else {
                 VStack(spacing: 10) {
                     ForEach(filteredAlbums) { album in
-                        albumRow(album)
+                        NavigationLink {
+                            OneAlbumView(album: album)
+                        } label: {
+                            albumRow(album)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal)

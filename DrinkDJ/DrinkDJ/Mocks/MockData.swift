@@ -31,8 +31,11 @@ enum AlbumArtwork {
 struct AlbumItem: Identifiable {
     let id: String
     let title: String
-    let drinkCount: Int
     let artwork: AlbumArtwork
+    var drinkIDs: [String] = []
+    var drinkCount: Int {
+        drinkIDs.count
+    }
 }
 
 struct AlbumDrink: Identifiable {
@@ -169,32 +172,32 @@ enum MockData {
         AlbumItem(
             id: "favourites",
             title: "Favourites",
-            drinkCount: 23,
-            artwork: .symbol("star")
+            artwork: .symbol("star"),
+            drinkIDs: ["mojito", "blue-lagoon", "espresso-martini"]
         ),
         AlbumItem(
             id: "to-check-out",
             title: "To Check Out",
-            drinkCount: 11,
-            artwork: .symbol("wineglass")
+            artwork: .symbol("wineglass"),
+            drinkIDs: ["citrus-garden"]
         ),
         AlbumItem(
             id: "your-drinks",
             title: "Your Drinks",
-            drinkCount: 5,
-            artwork: .symbol("flask")
+            artwork: .symbol("flask"),
+            drinkIDs: ["blue-lagoon"]
         ),
         AlbumItem(
             id: "album-1",
             title: "Album1",
-            drinkCount: 8,
-            artwork: .asset("cat_album1")
+            artwork: .asset("cat_album1"),
+            drinkIDs: ["mojito", "blue-lagoon","tom-collins","citrus-garden","paloma"]
         ),
         AlbumItem(
             id: "bitter-ones",
             title: "Bitter ones",
-            drinkCount: 3,
-            artwork: .asset("cat_album2")
+            artwork: .asset("cat_album2"),
+            drinkIDs: []
         )
     ]
     
