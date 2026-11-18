@@ -6,7 +6,9 @@ struct PreferencesView: View {
     @State private var character = MockData.characterLevels
     @State private var likedSpirits = MockData.likedSpirits
     @State private var likedIngredients = MockData.likedIngredients
-
+    
+    @State private var searchedIngredient = ""
+    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -139,6 +141,7 @@ struct PreferencesView: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 4)
+                .searchable(text: $searchedIngredient, prompt: "Enter Ingredients name")
             }
         }
     }
