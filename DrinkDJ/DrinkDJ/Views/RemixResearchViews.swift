@@ -1,6 +1,96 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+extension RemixVersion {
+    var userFacingLabel: String { "Version \(number)" }
+}
+
+private extension TasteDimension {
+    var ratingTitle: String {
+        switch self {
+        case .sweet: "Sweetness"
+        case .sour: "Sourness"
+        case .bitter: "Bitterness"
+        case .strong: "Strength"
+        }
+    }
+
+    func ratingChoice(_ perception: TastePerception) -> String {
+        switch perception {
+        case .notRated: return "Skip"
+        case .justRight: return "Just right"
+        case .tooLittle:
+            switch self {
+            case .sweet: return "Not sweet enough"
+            case .sour: return "Not sour enough"
+            case .bitter: return "Not bitter enough"
+            case .strong: return "Too weak"
+            }
+        case .tooMuch:
+            switch self {
+            case .sweet: return "Too sweet"
+            case .sour: return "Too sour"
+            case .bitter: return "Too bitter"
+            case .strong: return "Too strong"
+            }
+        }
+    }
+}
+
+struct RemixSavedConfirmation: View {
+    let version: RemixVersion
+    let rate: () -> Void
+    let keepMixing: () -> Void
+    let seeVersions: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.largeTitle).foregroundStyle(.cyan)
+                        Text("Your remix is saved").font(.title.bold())
+                        Text(version.name).font(.headline)
+                        Text("\(version.userFacingLabel) · Earlier recipes are kept too.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(20)
+                    .background(.black, in: RoundedRectangle(cornerRadius: 26))
+                    .overlay { RoundedRectangle(cornerRadius: 26).strokeBorder(.white.opacity(0.15)) }
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Have you tried this drink yet?").font(.title3.bold())
+                        Text("Rate it after you’ve made it. Your rating helps improve your future matches.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                        Button(action: rate) {
+                            Label("I’ve tasted it — add a rating", systemImage: "star.bubble")
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        }
+                        .buttonStyle(.borderedProminent).foregroundStyle(.black)
+                        Button(action: keepMixing) {
+                            Text("Not yet — keep mixing").frame(maxWidth: .infinity, minHeight: 44)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    Button(action: seeVersions) {
+                        Label("See saved recipes", systemImage: "clock.arrow.circlepath")
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                }
+                .padding(20)
+            }
+            .background(Color(red: 0.035, green: 0.055, blue: 0.075))
+            .navigationTitle("Saved").navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done", action: keepMixing) }
+            }
+        }
+        .preferredColorScheme(.dark).tint(.cyan)
+    }
+}
+
 struct RemixSessionControls: View {
     let match: Int?
     let version: String
@@ -26,14 +116,21 @@ struct RemixSessionControls: View {
                 .labelStyle(.iconOnly).frame(minWidth: 32, minHeight: 44)
             Button(action: showHistory) {
                 VStack(spacing: 2) {
-                    Image(systemName: "point.3.connected.trianglepath.dotted")
-                    Text(version + (modified ? " *" : "")).font(.caption2)
+                    Image(systemName: "clock.arrow.circlepath")
+                    Text(modified ? "Unsaved edits" : "Saved recipes").font(.caption2)
                 }
                 .frame(minWidth: 40, minHeight: 44)
             }
-            .accessibilityLabel("Version history, \(version)\(modified ? ", uncommitted changes" : "")")
-            Button("Taste check", systemImage: "bubble.left.and.text.bubble.right", action: showFeedback)
-                .labelStyle(.iconOnly).frame(minWidth: 32, minHeight: 44).disabled(!canGiveFeedback)
+            .accessibilityLabel("Saved recipes. \(version)\(modified ? ", with unsaved changes" : "")")
+            Button(action: showFeedback) {
+                VStack(spacing: 2) {
+                    Image(systemName: "star.bubble")
+                    Text("Rate taste").font(.caption2)
+                }
+                .frame(minWidth: 44, minHeight: 44)
+            }
+            .accessibilityLabel("Rate a drink you’ve made")
+            .disabled(!canGiveFeedback)
             if canUndo {
                 Button("Undo", systemImage: "arrow.uturn.backward", action: undo)
                     .labelStyle(.iconOnly).frame(minWidth: 32, minHeight: 44)
@@ -157,14 +254,14 @@ struct RemixHistorySheet: View {
         NavigationStack {
             List {
                 Section {
-                    Button("I made it — taste check", systemImage: "bubble.left.and.text.bubble.right", action: tasteCurrent)
+                    Button("I’ve tasted it — add a rating", systemImage: "bubble.left.and.text.bubble.right", action: tasteCurrent)
                         .disabled(!canTaste)
                     Toggle("Show all drinks", isOn: $showAll)
-                    Text("Each save is a new version. Checking out an older version lets you branch from it; later versions remain intact.")
+                    Text("Open an earlier recipe to try another idea. Your other saved versions stay available, and any current edits are kept for you.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                Section("Versions") {
-                    if versions.isEmpty { Text("Save your first version to start a history.").foregroundStyle(.secondary) }
+                Section("Saved recipes") {
+                    if versions.isEmpty { Text("Tap Save in the mixer to keep your first recipe.").foregroundStyle(.secondary) }
                     ForEach(versions) { version in
                         RemixVersionRow(
                             version: version,
@@ -175,24 +272,24 @@ struct RemixHistorySheet: View {
                     }
                 }
                 if !backups.isEmpty {
-                    Section("Preserved drafts") {
+                    Section("Edits kept for you") {
                         ForEach(backups) { draft in
                             Button { restoreDraft(draft.copy) } label: {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(draft.copy.recipe.source).font(.headline)
                                     Text(draft.date, format: .dateTime.day().month().hour().minute())
                                         .font(.caption).foregroundStyle(.secondary)
-                                    Text("Restore uncommitted changes").font(.caption)
+                                    Text("Continue these edits").font(.caption)
                                 }
                             }
                         }
                     }
                 }
-                Section("Tasting feedback") {
-                    if feedback.isEmpty { Text("Taste a version, then record what worked.").foregroundStyle(.secondary) }
+                Section("Your taste ratings") {
+                    if feedback.isEmpty { Text("After you make a drink, add a rating to remember what you liked.").foregroundStyle(.secondary) }
                     ForEach(feedback) { item in
                         VStack(alignment: .leading, spacing: 5) {
-                            Text("\(item.rating)/5 · \(store.version(item.revisionID)?.label ?? "Uncommitted draft")").font(.headline)
+                            Text("\(item.rating)/5 · \(store.version(item.revisionID)?.userFacingLabel ?? "Recipe you were editing")").font(.headline)
                             Text(item.date, format: .dateTime.day().month().hour().minute()).font(.caption).foregroundStyle(.secondary)
                             ForEach(item.assessments) { assessment in
                                 if assessment.perception != .notRated {
@@ -200,12 +297,13 @@ struct RemixHistorySheet: View {
                                 }
                             }
                             if !item.notes.isEmpty { Text(item.notes).font(.subheadline) }
-                            Text(item.learned ? "Preferences tuned" : "Preferences unchanged").font(.caption).foregroundStyle(.secondary)
+                            Text(item.learned ? "Used to improve your matches" : "Your taste preferences stayed the same").font(.caption).foregroundStyle(.secondary)
                         }
                     }
                 }
                 Section {
-                    Button("Export research data (JSON)", systemImage: "square.and.arrow.up") {
+                    DisclosureGroup("Data export") {
+                        Button("Export data (JSON)", systemImage: "square.and.arrow.up") {
                         do {
                             exportDocument = RemixExportDocument(data: try store.exportData())
                             showsExport = true
@@ -213,9 +311,10 @@ struct RemixHistorySheet: View {
                     }
                     Text("Exports this device’s anonymous participant ID, preferences, version ancestry, recipe snapshots, tasting feedback, and drafts. Nothing is uploaded automatically.")
                         .font(.caption).foregroundStyle(.secondary)
+                    }
                 }
             }
-            .navigationTitle("Remix history").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Saved recipes").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .fileExporter(
                 isPresented: $showsExport, document: exportDocument,
@@ -248,16 +347,16 @@ private struct RemixVersionRow: View {
             let changes = RemixDiff.lines(from: parent?.recipe ?? version.original, to: version.recipe)
             ForEach(changes, id: \.self) { Text($0).font(.caption).foregroundStyle(.secondary) }
             Text("\(version.estimatedMatch)% estimated match when saved").font(.caption).foregroundStyle(.secondary)
-            Button(current ? "Restore this version" : "Check out this version", systemImage: "arrow.triangle.branch", action: checkout)
+            Button(current ? "Start again from this recipe" : "Open this recipe", systemImage: "arrow.uturn.backward", action: checkout)
                 .padding(.vertical, 8)
         } label: {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: version.parentID == nil ? "circle.fill" : "arrow.triangle.branch").foregroundStyle(.cyan)
+                Image(systemName: "bookmark").foregroundStyle(.cyan)
                     .frame(width: 18)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(version.label + (current ? " · Current" : "")).font(.caption.monospaced().bold()).foregroundStyle(.cyan)
+                    Text(version.userFacingLabel + (current ? " · In your mixer" : "")).font(.caption.monospaced().bold()).foregroundStyle(.cyan)
                     Text(version.name).font(.headline)
-                    Text(parent.map { "Parent: v\($0.number)" } ?? "Parent: original recipe")
+                    Text(parent.map { "Based on version \($0.number)" } ?? "Based on the original recipe")
                         .font(.caption).foregroundStyle(.secondary)
                     Text(version.date, format: .dateTime.day().month().hour().minute())
                         .font(.caption).foregroundStyle(.secondary)
@@ -301,11 +400,11 @@ struct RemixFeedbackSheet: View {
                 } else {
                     Section {
                         Text(copy.recipe.source).font(.headline)
-                        Text("Rate the drink you actually made. Your feedback is linked to this exact recipe, including uncommitted changes.")
+                        Text("Tell us how this recipe tasted. Your rating helps you remember what worked and find drinks you’ll enjoy.")
                             .font(.caption).foregroundStyle(.secondary)
-                        Toggle("I made and tasted this recipe", isOn: $tasted)
+                        Toggle("I’ve made and tasted this drink", isOn: $tasted)
                     }
-                    Section("How much did you like it?") {
+                    Section("1. How did you like it?") {
                         HStack {
                             ForEach(1...5, id: \.self) { value in
                                 Button { rating = value } label: {
@@ -318,36 +417,34 @@ struct RemixFeedbackSheet: View {
                             }
                         }
                     }
-                    Section("For your taste") {
+                    Section("2. Anything to change? (optional)") {
                         ForEach($assessments) { $assessment in
-                            Picker(assessment.dimension.rawValue, selection: $assessment.perception) {
+                            Picker(assessment.dimension.ratingTitle, selection: $assessment.perception) {
                                 ForEach(TastePerception.allCases) { perception in
-                                    Text(perception.rawValue).tag(perception)
+                                    Text(assessment.dimension.ratingChoice(perception)).tag(perception)
                                 }
                             }
                         }
-                        Text("For Strong, ‘Too little’ means too weak and ‘Too much’ means too strong.")
-                            .font(.caption).foregroundStyle(.secondary)
                     }
-                    Section("Notes") {
+                    Section("Anything else? (optional)") {
                         TextField("What would you keep or change?", text: $notes, axis: .vertical)
                             .lineLimit(3...6)
                             .onChange(of: notes) { _, value in if value.count > 2000 { notes = String(value.prefix(2000)) } }
                     }
                     Section {
-                        Toggle("Tune my preferences from this tasting", isOn: $learn)
-                        Text("Small preference adjustments influence future match estimates. The saved recipe stays unchanged.")
+                        Toggle("Use this rating to improve my matches", isOn: $learn)
+                        Text("Gradually learns what you enjoy. Your saved recipe stays the same.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
             }
-            .navigationTitle(recorded == nil ? "Taste check" : "Feedback saved")
+            .navigationTitle(recorded == nil ? "Rate your drink" : "Rating saved")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button(recorded == nil ? "Cancel" : "Done") { dismiss() } }
                 if recorded == nil {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Record") {
+                        Button("Save rating") {
                             do {
                                 recorded = try store.recordTasting(
                                     copy: copy, rating: rating, assessments: assessments,
@@ -360,7 +457,7 @@ struct RemixFeedbackSheet: View {
                     }
                 }
             }
-            .alert("Feedback not saved", isPresented: Binding(
+            .alert("Rating not saved", isPresented: Binding(
                 get: { saveError != nil }, set: { if !$0 { saveError = nil } }
             )) {
                 Button("OK") { saveError = nil }
@@ -377,21 +474,21 @@ private struct RemixFeedbackResult: View {
     var body: some View {
         let suggestion = RemixSuggestion.recipe(after: feedback)
         Section {
-            Label("Tasting recorded", systemImage: "checkmark.circle.fill").foregroundStyle(.cyan)
-            Text(feedback.learned ? "Your preferences were gently tuned for future matches." : "Your preferences were left unchanged.")
-            Text("The exact recipe, rating, and preference snapshots are available in history and JSON export.")
+            Label("Your rating is saved", systemImage: "checkmark.circle.fill").foregroundStyle(.cyan)
+            Text(feedback.learned ? "We’ve learned a little more about your taste for future matches." : "Your taste preferences stayed the same.")
+            Text("You can find this rating with your saved recipes.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         if suggestion != feedback.recipe {
-            Section("Try next") {
+            Section("Want to try a small tweak?") {
                 ForEach(RemixDiff.lines(from: feedback.recipe, to: suggestion), id: \.self) { Text($0) }
-                Button("Try these changes as a draft", systemImage: "slider.horizontal.3") { apply(suggestion) }
-                Text("A small starting adjustment, not a guarantee. Taste again and record another check.")
+                Button("Try this adjustment", systemImage: "slider.horizontal.3") { apply(suggestion) }
+                Text("Opens the adjusted recipe in your mixer. Your saved recipe stays safe. Save it again if you like the change.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         } else {
             Section {
-                Text("Keep experimenting with the channels, then taste and record your next version.")
+                Text("Keep mixing, or come back after your next try to add another rating.")
             }
         }
     }

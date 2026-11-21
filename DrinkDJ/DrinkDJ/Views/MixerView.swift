@@ -2,7 +2,7 @@ import SwiftUI
 import Foundation
 
 private enum MixerSheet: String, Identifiable {
-    case save, history, preferences, feedback, match
+    case save, saved, history, preferences, feedback, match
     var id: Self { self }
 }
 
@@ -17,6 +17,7 @@ struct MixerView: View {
     @State private var ingredientPicker: IngredientPickerRequest?
     @State private var activeSheet: MixerSheet?
     @State private var nextSheet: MixerSheet?
+    @State private var lastSavedVersion: RemixVersion?
     @State private var storageError: String?
 
     @MainActor init(mix: Mix) {
@@ -44,7 +45,7 @@ struct MixerView: View {
                     match: recipe.ingredients.isEmpty ? nil : RemixMatch.estimate(
                         recipe: comparing ? original : recipe, preferences: store.preferences
                     ).percent,
-                    version: store.version(baseVersionID).map { "v\($0.number)" } ?? "History",
+                    version: store.version(baseVersionID).map { "Version \($0.number)" } ?? "Not saved",
                     modified: hasChanges,
                     canUndo: !history.isEmpty && !comparing,
                     canGiveFeedback: !comparing && !recipe.ingredients.isEmpty,
@@ -57,7 +58,7 @@ struct MixerView: View {
                     }
                 )
                 if comparing {
-                    Label("Viewing A · Original. Switch to B · Your remix to keep editing.", systemImage: "eye")
+                    Label("Viewing Original. Switch to Remix to keep editing.", systemImage: "eye")
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
                 RemixIngredientsSection(
@@ -114,15 +115,32 @@ struct MixerView: View {
                 RemixSaveSheet(
                     recipe: recipe,
                     original: store.version(baseVersionID)?.recipe ?? original,
-                    parentLabel: store.version(baseVersionID)?.label ?? "Original recipe",
-                    suggestedBranch: store.suggestedBranch(for: workingCopy),
+                    parentLabel: store.version(baseVersionID)?.userFacingLabel ?? "Original recipe",
+                    canCreateVariation: baseVersionID != nil,
                     initialName: store.version(baseVersionID)?.name ?? "\(recipe.source) · My remix"
-                ) { name, message, branch in
+                ) { name, message, separateIdea in
+                    let branch = separateIdea ? "variation-\(UUID().uuidString.prefix(8).lowercased())" : store.suggestedBranch(for: workingCopy)
                     let version = try store.commit(copy: workingCopy, name: name, message: message, branch: branch)
                     baseVersionID = version.id
                     history.removeAll()
-                    nextSheet = .history
+                    lastSavedVersion = version
+                    nextSheet = .saved
                     activeSheet = nil
+                }
+            case .saved:
+                if let version = lastSavedVersion {
+                    RemixSavedConfirmation(
+                        version: version,
+                        rate: {
+                            nextSheet = .feedback
+                            activeSheet = nil
+                        },
+                        keepMixing: { activeSheet = nil },
+                        seeVersions: {
+                            nextSheet = .history
+                            activeSheet = nil
+                        }
+                    )
                 }
             case .history:
                 RemixHistorySheet(
@@ -215,9 +233,9 @@ private struct RemixIntroduction: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(source).font(.title2.bold())
-            Picker("A/B recipe comparison", selection: $comparing) {
-                Text("A · Original").tag(true)
-                Text("B · Your remix").tag(false)
+            Picker("Recipe comparison", selection: $comparing) {
+                Text("Original").tag(true)
+                Text("Remix").tag(false)
             }
             .pickerStyle(.segmented)
         }
@@ -966,11 +984,11 @@ private struct RemixSaveSheet: View {
     let recipe: RemixRecipe
     let original: RemixRecipe
     let parentLabel: String
-    let suggestedBranch: String
+    let canCreateVariation: Bool
     let initialName: String
-    let save: (String, String, String) throws -> Void
+    let save: (String, String, Bool) throws -> Void
     @State private var name = ""
-    @State private var branch = ""
+    @State private var separateIdea = false
     @State private var message = ""
     @State private var saveError: String?
 
@@ -979,16 +997,9 @@ private struct RemixSaveSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     RemixSaveName(name: $name)
-                    RemixCommitDetails(parentLabel: parentLabel, branch: $branch, message: $message)
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("BASED ON").font(.caption.monospaced().bold()).foregroundStyle(.secondary)
-                        Text(recipe.source).font(.headline)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(16)
-                    .modifier(RemixIslandSurface())
+                    RemixSavePlan(parentLabel: parentLabel, canCreateVariation: canCreateVariation, separateIdea: $separateIdea, message: $message)
                     RemixSaveChanges(recipe: recipe, original: original)
-                    Text("Each save creates an immutable version on this device. Older versions and branches stay available in history.")
+                    Text("Save now, make it when you’re ready. You can rate the taste after you’ve tried it.")
                         .font(.caption).foregroundStyle(.secondary).padding(.horizontal, 8)
                 }
                 .padding(20)
@@ -999,12 +1010,12 @@ private struct RemixSaveSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save version") {
+                    Button("Save remix") {
                         do {
                             try save(
                                 name.trimmingCharacters(in: .whitespacesAndNewlines),
                                 message.trimmingCharacters(in: .whitespacesAndNewlines),
-                                branch.trimmingCharacters(in: .whitespacesAndNewlines)
+                                separateIdea
                             )
                         } catch { saveError = error.localizedDescription }
                     }
@@ -1013,9 +1024,8 @@ private struct RemixSaveSheet: View {
             }
             .onAppear {
                 if name.isEmpty { name = initialName }
-                if branch.isEmpty { branch = suggestedBranch }
             }
-            .alert("Version not saved", isPresented: Binding(
+            .alert("Remix not saved", isPresented: Binding(
                 get: { saveError != nil }, set: { if !$0 { saveError = nil } }
             )) {
                 Button("OK") { saveError = nil }
@@ -1025,24 +1035,25 @@ private struct RemixSaveSheet: View {
     }
 }
 
-private struct RemixCommitDetails: View {
+private struct RemixSavePlan: View {
     let parentLabel: String
-    @Binding var branch: String
+    let canCreateVariation: Bool
+    @Binding var separateIdea: Bool
     @Binding var message: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("VERSION").font(.caption.monospaced().bold()).foregroundStyle(.secondary)
-            LabeledContent("Parent", value: parentLabel)
-            TextField("Branch name", text: $branch)
-                .textInputAutocapitalization(.never).autocorrectionDisabled()
-                .accessibilityLabel("Branch name")
-            TextField("What changed? (optional)", text: $message, axis: .vertical)
-                .lineLimit(2...4).accessibilityLabel("Version change note")
-            Text("Continue the current branch or give this experiment a new branch name.")
+            Label("Your earlier recipes stay safe", systemImage: "clock.arrow.circlepath")
+                .font(.subheadline.weight(.semibold)).foregroundStyle(.cyan)
+            Text("Based on \(parentLabel.lowercased()). Saving keeps this recipe alongside your earlier versions.")
                 .font(.caption).foregroundStyle(.secondary)
+            if canCreateVariation {
+                Toggle("Keep this as a separate idea", isOn: $separateIdea)
+                    .font(.subheadline)
+            }
+            TextField("Add a note, e.g. less lime (optional)", text: $message, axis: .vertical)
+                .lineLimit(2...4).accessibilityLabel("Note about this remix, optional")
         }
-        .font(.subheadline)
         .padding(16)
         .modifier(RemixIslandSurface())
     }
@@ -1053,7 +1064,7 @@ private struct RemixSaveName: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("NAME YOUR REMIX", systemImage: "record.circle")
+            Label("NAME YOUR DRINK", systemImage: "record.circle")
                 .font(.caption.monospaced().bold()).foregroundStyle(.cyan)
             TextField("Remix name", text: $name)
                 .font(.title3.weight(.semibold))
@@ -1072,7 +1083,7 @@ private struct RemixSaveChanges: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("WHAT CHANGED").font(.caption.monospaced().bold()).foregroundStyle(.secondary)
+            Text("YOUR CHANGES").font(.caption.monospaced().bold()).foregroundStyle(.secondary)
             ForEach(recipe.ingredients) { ingredient in
                 let baseline = original.ingredients.first { $0.id == ingredient.id }
                 if baseline != ingredient {
@@ -1093,7 +1104,7 @@ private struct RemixSaveChanges: View {
             if recipe.steps != original.steps {
                 Text("Preparation: \(recipe.steps.map { $0.method.rawValue }.joined(separator: " → "))")
             }
-            if recipe == original { Text("Original recipe, saved as your starting version.") }
+            if recipe == original { Text("Same recipe — saved so you can return to it later.") }
         }
         .font(.subheadline)
         .frame(maxWidth: .infinity, alignment: .leading)
