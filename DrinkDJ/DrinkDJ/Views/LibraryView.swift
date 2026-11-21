@@ -328,7 +328,7 @@ private struct HomeDrinkCard: View {
                     .foregroundStyle(.white.opacity(0.88))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                Text(drink.mix.match ?? "For you")
+                Text("\(RemixMatch.estimate(recipe: RemixRecipe.startingRecipe(for: drink.mix), preferences: RemixStore.shared.preferences).percent)% est.")
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(.black)
                     .padding(.horizontal, 9)
