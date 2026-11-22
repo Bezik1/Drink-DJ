@@ -1,11 +1,8 @@
 import SwiftUI
 
 struct PreferencesView: View {
-    @State private var intensity = MockData.intensity
-    @State private var taste = MockData.tasteLevels
-    @State private var character = MockData.characterLevels
-    @State private var likedSpirits = MockData.likedSpirits
-    @State private var likedIngredients = MockData.likedIngredients
+    @State private var preferences = RemixStore.shared.preferences
+    @State private var saveError: String?
 
     var body: some View {
         ScrollView {
@@ -21,7 +18,7 @@ struct PreferencesView: View {
                         .fontWeight(.bold)
                         .foregroundStyle(.white)
 
-                    Text("Set the levels. Console does the rest.")
+                    Text("Your saved tastes guide the match estimate. Preferences save automatically.")
                         .font(.subheadline)
                         .foregroundStyle(.gray)
                 }
@@ -30,13 +27,13 @@ struct PreferencesView: View {
                 horizontalSelectionSection(
                     title: "BASE SPIRIT",
                     items: MockData.spirits,
-                    selection: $likedSpirits
+                    selection: $preferences.likedSpirits
                 )
 
                 horizontalSelectionSection(
                     title: "INGREDIENTS",
                     items: MockData.ingredients,
-                    selection: $likedIngredients
+                    selection: $preferences.likedIngredients
                 )
 
                 VStack(spacing: 24) {
@@ -53,7 +50,7 @@ struct PreferencesView: View {
                             
                             Spacer()
 
-                            Slider(value: $intensity, in: 0...20, step: 1)
+                            Slider(value: $preferences.intensity, in: 0...20, step: 1)
                                 .tint(.cyan)
 
                             Spacer()
@@ -67,12 +64,12 @@ struct PreferencesView: View {
                     Divider()
                         .background(Color.white.opacity(0.15))
 
-                    knobSection(title: "TASTE", levels: $taste)
+                    knobSection(title: "TASTE", levels: $preferences.taste)
 
                     Divider()
                         .background(Color.white.opacity(0.15))
 
-                    knobSection(title: "CHARACTER", levels: $character)
+                    knobSection(title: "CHARACTER", levels: $preferences.character)
                 }
                 .padding(20)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -86,6 +83,25 @@ struct PreferencesView: View {
         }
         .background(Color.black.ignoresSafeArea())
         .preferredColorScheme(.dark)
+        .task(id: preferences) {
+            do {
+                try await Task.sleep(for: .milliseconds(350))
+                try RemixStore.shared.updatePreferences(preferences)
+            } catch is CancellationError {
+                // A newer edit or dismissal will save the latest state.
+            } catch {
+                saveError = error.localizedDescription
+            }
+        }
+        .onDisappear {
+            do { try RemixStore.shared.updatePreferences(preferences) }
+            catch { saveError = error.localizedDescription }
+        }
+        .alert("Preferences not saved", isPresented: Binding(
+            get: { saveError != nil }, set: { if !$0 { saveError = nil } }
+        )) {
+            Button("OK") { saveError = nil }
+        } message: { Text(saveError ?? "") }
     }
 
     private func horizontalSelectionSection(
@@ -143,7 +159,7 @@ struct PreferencesView: View {
         }
     }
 
-    private func knobSection(title: String, levels: Binding<[FlavourLevel]>) -> some View {
+    private func knobSection(title: String, levels: Binding<[PreferenceLevel]>) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(title)
                 .font(.caption)

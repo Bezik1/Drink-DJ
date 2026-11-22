@@ -1,1533 +1,1145 @@
 import SwiftUI
+import Foundation
+
+private enum MixerSheet: String, Identifiable {
+    case save, saved, history, preferences, feedback, match
+    var id: Self { self }
+}
 
 struct MixerView: View {
     let mix: Mix
-
-    @State private var flavours: [Double]
-    @State private var channels: [MixerChannel]
-    @State private var adventure = 0.35
-    @State private var history: [MixerSnapshot] = []
-    @State private var activeKnob: Int?
-    @State private var step: MixerStep
-    @State private var vibe = DrinkVibe.refreshing
-    @State private var preferredStrength = 0.45
-    @State private var preferredDryness = 0.55
-    @State private var spirit = SpiritChoice.chooseForMe
-    @State private var showsFeedback = false
-    @State private var adjustmentNote: LocalizedStringResource?
-
-    private let originalFlavours: [Double]
-    private let originalChannels: [MixerChannel]
+    @State private var store = RemixStore.shared
+    @State private var original: RemixRecipe
+    @State private var recipe: RemixRecipe
+    @State private var baseVersionID: UUID?
+    @State private var history: [RemixWorkingCopy] = []
+    @State private var comparing = false
+    @State private var ingredientPicker: IngredientPickerRequest?
+    @State private var activeSheet: MixerSheet?
+    @State private var nextSheet: MixerSheet?
+    @State private var lastSavedVersion: RemixVersion?
+    @State private var storageError: String?
 
     @MainActor init(mix: Mix) {
         self.mix = mix
-        let values = Array(mix.flavours.prefix(4)).map(\.level)
-            + Array(repeating: 10, count: max(0, 4 - mix.flavours.prefix(4).count))
-        let recipe = mix.recipe.map(MixerChannel.init)
-        originalFlavours = values
-        originalChannels = recipe
-        _flavours = State(initialValue: values)
-        _channels = State(initialValue: recipe)
-        _step = State(initialValue: mix.isEmpty ? .vibe : .tune)
+        let baseline = RemixRecipe.startingRecipe(for: mix)
+        let copy = RemixStore.shared.loadDraft(baseline: baseline)
+        _original = State(initialValue: copy.original)
+        _recipe = State(initialValue: copy.recipe)
+        _baseVersionID = State(initialValue: copy.baseVersionID)
+    }
+
+    private var workingCopy: RemixWorkingCopy {
+        RemixWorkingCopy(recipe: recipe, original: original, baseVersionID: baseVersionID)
+    }
+
+    private var hasChanges: Bool {
+        recipe != (store.version(baseVersionID)?.recipe ?? original)
     }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 18) {
-                MixerHeader(
-                    name: mix.isEmpty ? "Untitled Mix" : mix.name,
-                    volume: totalVolume,
-                    strength: strength,
-                    fit: fit,
-                    canUndo: !history.isEmpty,
-                    undo: undo,
-                    reset: reset
+            VStack(alignment: .leading, spacing: 12) {
+                RemixIntroduction(source: original.source, comparing: $comparing)
+                RemixSessionControls(
+                    match: recipe.ingredients.isEmpty ? nil : RemixMatch.estimate(
+                        recipe: comparing ? original : recipe, preferences: store.preferences
+                    ).percent,
+                    version: store.version(baseVersionID).map { "Version \($0.number)" } ?? "Not saved",
+                    modified: hasChanges,
+                    canUndo: !history.isEmpty && !comparing,
+                    canGiveFeedback: !comparing && !recipe.ingredients.isEmpty,
+                    showMatch: { activeSheet = .match },
+                    showPreferences: { activeSheet = .preferences },
+                    showHistory: { activeSheet = .history },
+                    showFeedback: { activeSheet = .feedback },
+                    undo: {
+                        if let previous = history.popLast() { setCopy(previous) }
+                    }
                 )
-                MixerStepProgress(step: $step, hasBaseline: !channels.isEmpty)
-                MixerStepIntroduction(step: step)
-
-                switch step {
-                case .vibe:
-                    VibeBrief(
-                        vibe: $vibe,
-                        strength: $preferredStrength,
-                        dryness: $preferredDryness,
-                        spirit: $spirit
-                    )
-                case .tune:
-                    if let adjustmentNote {
-                        AdjustmentNote(note: adjustmentNote)
+                if comparing {
+                    Label("Viewing Original. Switch to Remix to keep editing.", systemImage: "eye")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                }
+                RemixIngredientsSection(
+                    ingredients: comparing ? original.ingredients : recipe.ingredients,
+                    originals: original.ingredients,
+                    editable: !comparing,
+                    change: changeIngredient,
+                    remember: remember,
+                    swap: { ingredientPicker = IngredientPickerRequest(target: $0) },
+                    remove: removeIngredient,
+                    add: { ingredientPicker = IngredientPickerRequest(target: nil) }
+                )
+                if !comparing && recipe != original {
+                    Button("Reset to original", systemImage: "arrow.counterclockwise") {
+                        remember()
+                        recipe = original
                     }
-                    DrinkPreview(
-                        fill: min(1, max(0.12, Double(totalVolume) / 220)),
-                        palette: drinkPalette,
-                        flavourNames: flavourNames,
-                        flavourValues: flavours,
-                        compact: true
-                    )
-                    FlavourDeck(
-                        names: flavourNames,
-                        values: $flavours,
-                        activeKnob: $activeKnob,
-                        remember: remember
-                    )
-                    Crossfader(value: $adventure, remember: remember)
-                    DisclosureGroup {
-                        ChannelDeck(
-                            channels: $channels,
-                            suggestions: mix.suggestions,
-                            catalog: MockData.libraryIngredients,
-                            remember: remember,
-                            add: add,
-                            remove: remove
-                        )
-                        .padding(.top, 12)
-                    } label: {
-                        Label("Fine-tune ingredients", systemImage: "slider.horizontal.3")
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    .tint(.cyan)
-                    .consolePanel()
-                case .finish:
-                    DrinkPreview(
-                        fill: min(1, max(0.12, Double(totalVolume) / 220)),
-                        palette: drinkPalette,
-                        flavourNames: flavourNames,
-                        flavourValues: flavours
-                    )
-                    MixSummary(
-                        channels: channels,
-                        volume: totalVolume,
-                        strength: strength,
-                        fit: fit
-                    )
-                    FinishActions(
-                        taste: { showsFeedback = true },
-                        remix: surpriseMe
-                    )
+                    .font(.subheadline)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(20)
         }
-        .background(MixerBackground())
+        .scrollDismissesKeyboard(.interactively)
+        .background(Color(red: 0.035, green: 0.055, blue: 0.075))
+        .toolbar(.hidden, for: .navigationBar)
         .safeAreaInset(edge: .bottom) {
-            MixerStepNavigation(
-                step: step,
-                canContinue: step != .tune || !channels.isEmpty,
-                back: previousStep,
-                next: nextStep
-            )
+            RemixSaveBar(recipe: comparing ? original : recipe, comparing: comparing, disabled: comparing || recipe.ingredients.isEmpty) {
+                activeSheet = .save
+            }
         }
-        .sheet(isPresented: $showsFeedback) {
-            TasteFeedbackSheet(apply: applyFeedback)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
+        .sheet(item: $ingredientPicker) { request in
+            RemixIngredientPicker(isSwapping: request.target != nil) { name, amount, unit in
+                remember()
+                if let id = request.target,
+                   let index = recipe.ingredients.firstIndex(where: { $0.id == id }) {
+                    let previousUnit = recipe.ingredients[index].unit
+                    recipe.ingredients[index].name = name
+                    recipe.ingredients[index].unit = unit
+                    if previousUnit != unit { recipe.ingredients[index].amount = amount }
+                } else {
+                    recipe.ingredients.append(RemixIngredient(name: name, amount: amount, unit: unit))
+                }
+                ingredientPicker = nil
+            }
         }
-        .preferredColorScheme(.dark)
-    }
-
-    private var flavourNames: [String] {
-        let existing = Array(mix.flavours.prefix(4)).map(\.name)
-        let defaults = ["Sweet", "Sour", "Bitter", "Fizz"]
-        return existing + defaults.dropFirst(existing.count)
-    }
-
-    private var totalVolume: Int {
-        Int(channels.reduce(0) { $0 + $1.amount })
-    }
-
-    private var strength: Int {
-        guard totalVolume > 0 else { return 0 }
-        let spiritVolume = channels.filter(\.isSpirit).reduce(0) { $0 + $1.amount }
-        return Int((spiritVolume * 0.4 / Double(totalVolume) * 100).rounded())
-    }
-
-    private var fit: Int {
-        let imbalance = flavours.reduce(0) { $0 + abs($1 - 10) }
-        return max(42, min(98, Int(96 - imbalance * 0.7 + adventure * 6)))
-    }
-
-    private var drinkPalette: DrinkPalette {
-        DrinkPalette(names: flavourNames, values: flavours)
+        .sheet(item: $activeSheet, onDismiss: {
+            if let next = nextSheet {
+                nextSheet = nil
+                activeSheet = next
+            }
+        }) { sheet in
+            switch sheet {
+            case .save:
+                RemixSaveSheet(
+                    recipe: recipe,
+                    original: store.version(baseVersionID)?.recipe ?? original,
+                    parentLabel: store.version(baseVersionID)?.userFacingLabel ?? "Original recipe",
+                    canCreateVariation: baseVersionID != nil,
+                    initialName: store.version(baseVersionID)?.name ?? "\(recipe.source) · My remix"
+                ) { name, message, separateIdea in
+                    let branch = separateIdea ? "variation-\(UUID().uuidString.prefix(8).lowercased())" : store.suggestedBranch(for: workingCopy)
+                    let version = try store.commit(copy: workingCopy, name: name, message: message, branch: branch)
+                    baseVersionID = version.id
+                    history.removeAll()
+                    lastSavedVersion = version
+                    nextSheet = .saved
+                    activeSheet = nil
+                }
+            case .saved:
+                if let version = lastSavedVersion {
+                    RemixSavedConfirmation(
+                        version: version,
+                        rate: {
+                            nextSheet = .feedback
+                            activeSheet = nil
+                        },
+                        keepMixing: { activeSheet = nil },
+                        seeVersions: {
+                            nextSheet = .history
+                            activeSheet = nil
+                        }
+                    )
+                }
+            case .history:
+                RemixHistorySheet(
+                    store: store, source: recipe.source, currentVersionID: baseVersionID,
+                    canTaste: !recipe.ingredients.isEmpty,
+                    tasteCurrent: {
+                        comparing = false
+                        nextSheet = .feedback
+                        activeSheet = nil
+                    },
+                    checkout: { version in
+                        checkout(RemixWorkingCopy(recipe: version.recipe, original: version.original, baseVersionID: version.id))
+                    },
+                    restoreDraft: checkout
+                )
+            case .preferences:
+                RemixPreferencesSheet()
+            case .feedback:
+                RemixFeedbackSheet(store: store, copy: workingCopy) { suggestion in
+                    remember()
+                    recipe = suggestion
+                    comparing = false
+                    activeSheet = nil
+                }
+            case .match:
+                RemixMatchSheet(recipe: comparing ? original : recipe, preferences: store.preferences) {
+                    nextSheet = .preferences
+                    activeSheet = nil
+                }
+            }
+        }
+        .alert("Remix data", isPresented: Binding(
+            get: { storageError != nil },
+            set: { if !$0 { storageError = nil } }
+        )) {
+            Button("OK") { storageError = nil }
+        } message: { Text(storageError ?? "") }
+        .onChange(of: workingCopy) { _, copy in
+            do { try store.saveDraft(copy) }
+            catch { storageError = error.localizedDescription }
+        }
+        .task {
+            if let error = store.loadError { storageError = error }
+        }
+        .tint(.cyan).preferredColorScheme(.dark)
     }
 
     private func remember() {
-        let snapshot = MixerSnapshot(flavours: flavours, channels: channels, adventure: adventure)
-        guard history.last != snapshot else { return }
-        history.append(snapshot)
-        if history.count > 20 { history.removeFirst() }
+        guard history.last != workingCopy else { return }
+        history.append(workingCopy)
+        if history.count > 50 { history.removeFirst() }
     }
 
-    private func undo() {
-        guard let snapshot = history.popLast() else { return }
-        withAnimation(.snappy) {
-            flavours = snapshot.flavours
-            channels = snapshot.channels
-            adventure = snapshot.adventure
-        }
+    private func setCopy(_ copy: RemixWorkingCopy) {
+        original = copy.original
+        recipe = copy.recipe
+        baseVersionID = copy.baseVersionID
+        comparing = false
     }
 
-    private func reset() {
-        if originalChannels.isEmpty {
-            generateBaseline()
-            return
-        }
+    private func checkout(_ copy: RemixWorkingCopy) {
+        do {
+            if hasChanges { try store.preserveDraft(workingCopy) }
+            remember()
+            setCopy(copy)
+            activeSheet = nil
+        } catch { storageError = error.localizedDescription }
+    }
+
+    private func changeIngredient(_ ingredient: RemixIngredient) {
+        guard let index = recipe.ingredients.firstIndex(where: { $0.id == ingredient.id }) else { return }
+        recipe.ingredients[index] = ingredient
+    }
+
+    private func removeIngredient(_ id: UUID) {
         remember()
-        withAnimation(.snappy) {
-            flavours = originalFlavours
-            channels = originalChannels
-            adventure = 0.35
-        }
-    }
-
-    private func surpriseMe() {
-        remember()
-        withAnimation(.bouncy) {
-            flavours = flavours.map { _ in Double.random(in: 3...19) }
-            adventure = Double.random(in: 0.55...1)
-            channels = channels.map {
-                var channel = $0
-                channel.amount = min(120, max(5, channel.amount + Double.random(in: -15...25)))
-                return channel
-            }
-        }
-    }
-
-    private func add(_ ingredient: Ingredient) {
-        remember()
-        withAnimation(.snappy) {
-            channels.append(MixerChannel(ingredient: ingredient))
-        }
-    }
-
-    private func remove(_ id: String) {
-        remember()
-        withAnimation(.snappy) {
-            channels.removeAll { $0.id == id }
-        }
-    }
-
-    private func previousStep() {
-        guard let previous = MixerStep(rawValue: step.rawValue - 1) else { return }
-        withAnimation(.snappy) { step = previous }
-    }
-
-    private func nextStep() {
-        if step == .vibe {
-            generateBaseline()
-            return
-        }
-        guard let next = MixerStep(rawValue: step.rawValue + 1) else { return }
-        withAnimation(.snappy) { step = next }
-    }
-
-    private func generateBaseline() {
-        remember()
-        let baseName = spirit.generatedBase
-        let baseAmount = 30 + preferredStrength * 35
-        let sweetAmount = max(5, 25 - preferredDryness * 18)
-        let sourAmount = 12 + preferredDryness * 12
-
-        channels = [
-            MixerChannel(name: baseName, amount: baseAmount, isSpirit: spirit != .zeroProof),
-            MixerChannel(name: vibe.accentIngredient, amount: vibe.accentAmount),
-            MixerChannel(name: "Fresh citrus", amount: sourAmount),
-            MixerChannel(name: "House syrup", amount: sweetAmount),
-            MixerChannel(name: vibe.topper, amount: 65)
-        ]
-        flavours = vibe.flavours
-        adjustmentNote = nil
-        withAnimation(.snappy) { step = .tune }
-    }
-
-    private func applyFeedback(_ feedback: TasteFeedback) {
-        remember()
-        switch feedback {
-        case .tooSweet:
-            flavours[0] = max(0, flavours[0] - 3)
-            adjustChannel(named: "House syrup", by: -5)
-            adjustmentNote = "Less syrup, with a drier finish."
-        case .tooSour:
-            flavours[1] = max(0, flavours[1] - 3)
-            adjustChannel(named: "Fresh citrus", by: -5)
-            adjustmentNote = "Softer citrus and a rounder balance."
-        case .tooStrong:
-            channels.indices.filter { channels[$0].isSpirit }.forEach {
-                channels[$0].amount = max(10, channels[$0].amount - 10)
-            }
-            adjustmentNote = "Reduced the spirit and kept the flavour profile."
-        case .tooWeak:
-            channels.indices.filter { channels[$0].isSpirit }.forEach {
-                channels[$0].amount = min(120, channels[$0].amount + 10)
-            }
-            adjustmentNote = "Lifted the base spirit by 10 ml."
-        case .needsSpark:
-            flavours[3] = min(20, flavours[3] + 4)
-            adjustmentNote = "Added brightness and a livelier finish."
-        case .perfect:
-            adjustmentNote = "Locked in. This mix is ready to save."
-        }
-        showsFeedback = false
-        withAnimation(.snappy) { step = feedback == .perfect ? .finish : .tune }
-    }
-
-    private func adjustChannel(named name: String, by delta: Double) {
-        guard let index = channels.firstIndex(where: { $0.name == name }) else { return }
-        channels[index].amount = max(0, min(120, channels[index].amount + delta))
+        recipe.ingredients.removeAll { $0.id == id }
     }
 }
 
-private enum MixerStep: Int, CaseIterable, Identifiable {
-    case vibe
-    case tune
-    case finish
-
-    var id: Self { self }
-
-    var title: LocalizedStringResource {
-        switch self {
-        case .vibe: "Vibe"
-        case .tune: "Tune"
-        case .finish: "Finish"
-        }
-    }
-
-    var eyebrow: LocalizedStringResource {
-        switch self {
-        case .vibe: "STEP 1 · SET THE VIBE"
-        case .tune: "STEP 2 · SHAPE THE SOUND"
-        case .finish: "STEP 3 · DROP THE MIX"
-        }
-    }
-
-    var detail: LocalizedStringResource {
-        switch self {
-        case .vibe: "Tell us what you want. We’ll build the recipe."
-        case .tune: "Turn the flavour knobs until it feels right."
-        case .finish: "Review your creation, then save or remix it."
-        }
-    }
+private struct IngredientPickerRequest: Identifiable {
+    let id = UUID()
+    let target: UUID?
 }
 
-private struct MixerStepProgress: View {
-    @Binding var step: MixerStep
-    let hasBaseline: Bool
+private struct RemixIntroduction: View {
+    let source: String
+    @Binding var comparing: Bool
 
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(MixerStep.allCases) { item in
-                Button {
-                    withAnimation(.snappy) { step = item }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: item.rawValue < step.rawValue ? "checkmark" : "\(item.rawValue + 1)")
-                            .font(.caption2.bold())
-                            .frame(width: 22, height: 22)
-                            .background(
-                                item.rawValue <= step.rawValue ? Color.cyan : Color.white.opacity(0.08),
-                                in: Circle()
-                            )
-                            .foregroundStyle(item.rawValue <= step.rawValue ? .black : .secondary)
-                        Text(item.title)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(item == step ? .white : .secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(
-                        item == step ? Color.white.opacity(0.08) : Color.clear,
-                        in: Capsule()
-                    )
-                }
-                .buttonStyle(.plain)
-                .disabled(!hasBaseline && item != .vibe)
-                .opacity(!hasBaseline && item != .vibe ? 0.45 : 1)
-                .accessibilityLabel("Step \(item.rawValue + 1), \(String(localized: item.title))")
+        VStack(alignment: .leading, spacing: 8) {
+            Text(source).font(.title2.bold())
+            Picker("Recipe comparison", selection: $comparing) {
+                Text("Original").tag(true)
+                Text("Remix").tag(false)
             }
-        }
-        .padding(4)
-        .background(.ultraThinMaterial, in: Capsule())
-    }
-}
-
-private struct MixerStepIntroduction: View {
-    let step: MixerStep
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(step.eyebrow)
-                .font(.caption2.bold())
-                .foregroundStyle(.cyan)
-            Text(step.detail)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(.white)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentTransition(.interpolate)
-    }
-}
-
-private enum DrinkVibe: String, CaseIterable, Identifiable {
-    case refreshing
-    case tropical
-    case elegant
-    case cozy
-    case bold
-    case surprising
-
-    var id: Self { self }
-
-    var title: LocalizedStringResource {
-        switch self {
-        case .refreshing: "Refreshing"
-        case .tropical: "Tropical"
-        case .elegant: "Elegant"
-        case .cozy: "Cozy"
-        case .bold: "Bold"
-        case .surprising: "Surprising"
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .refreshing: "drop.fill"
-        case .tropical: "sun.max.fill"
-        case .elegant: "sparkles"
-        case .cozy: "flame.fill"
-        case .bold: "bolt.fill"
-        case .surprising: "wand.and.stars"
-        }
-    }
-
-    var accentIngredient: String {
-        switch self {
-        case .refreshing: "Cucumber"
-        case .tropical: "Pineapple"
-        case .elegant: "Elderflower"
-        case .cozy: "Spiced honey"
-        case .bold: "Ginger"
-        case .surprising: "Basil"
-        }
-    }
-
-    var accentAmount: Double {
-        switch self {
-        case .refreshing, .elegant, .surprising: 15
-        case .tropical: 35
-        case .cozy, .bold: 20
-        }
-    }
-
-    var topper: String {
-        switch self {
-        case .refreshing, .elegant: "Soda water"
-        case .tropical: "Coconut water"
-        case .cozy: "Cloudy apple"
-        case .bold: "Ginger beer"
-        case .surprising: "Tonic water"
-        }
-    }
-
-    var flavours: [Double] {
-        switch self {
-        case .refreshing: [7, 13, 3, 17]
-        case .tropical: [14, 10, 2, 9]
-        case .elegant: [7, 9, 6, 11]
-        case .cozy: [13, 5, 9, 2]
-        case .bold: [8, 12, 15, 7]
-        case .surprising: [9, 11, 13, 12]
+            .pickerStyle(.segmented)
         }
     }
 }
 
-private enum SpiritChoice: String, CaseIterable, Identifiable {
-    case chooseForMe
-    case gin
-    case rum
-    case tequila
-    case vodka
-    case zeroProof
-
-    var id: Self { self }
-
-    var title: LocalizedStringResource {
-        switch self {
-        case .chooseForMe: "Choose for me"
-        case .gin: "Gin"
-        case .rum: "Rum"
-        case .tequila: "Tequila"
-        case .vodka: "Vodka"
-        case .zeroProof: "Zero-proof"
-        }
-    }
-
-    var generatedBase: String {
-        switch self {
-        case .chooseForMe, .gin: "Gin"
-        case .rum: "White rum"
-        case .tequila: "Tequila"
-        case .vodka: "Vodka"
-        case .zeroProof: "Juniper spirit"
-        }
-    }
-}
-
-private struct VibeBrief: View {
-    @Binding var vibe: DrinkVibe
-    @Binding var strength: Double
-    @Binding var dryness: Double
-    @Binding var spirit: SpiritChoice
-
-    var body: some View {
-        VStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 12) {
-                DeckTitle(title: "WHAT SHOULD IT FEEL LIKE?", detail: "Pick one")
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                    ForEach(DrinkVibe.allCases) { option in
-                        Button {
-                            withAnimation(.snappy) { vibe = option }
-                        } label: {
-                            Label(option.title, systemImage: option.symbol)
-                                .font(.subheadline.weight(.semibold))
-                                .frame(maxWidth: .infinity, minHeight: 48)
-                                .background(
-                                    option == vibe ? Color.cyan : Color.white.opacity(0.06),
-                                    in: RoundedRectangle(cornerRadius: 14)
-                                )
-                                .foregroundStyle(option == vibe ? .black : .white)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-            .consolePanel()
-
-            VStack(alignment: .leading, spacing: 18) {
-                PreferenceFader(
-                    title: "STRENGTH",
-                    low: "Light",
-                    high: "Spirit-forward",
-                    value: $strength,
-                    tint: .cyan
-                )
-                PreferenceFader(
-                    title: "FINISH",
-                    low: "Soft & sweet",
-                    high: "Crisp & dry",
-                    value: $dryness,
-                    tint: .pink
-                )
-            }
-            .consolePanel()
-
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("BASE SPIRIT")
-                        .font(.caption2.bold())
-                        .foregroundStyle(.secondary)
-                    Text("Optional — the bartender can choose")
-                        .font(.caption)
-                        .foregroundStyle(.white)
-                }
-                Spacer()
-                Picker("Base spirit", selection: $spirit) {
-                    ForEach(SpiritChoice.allCases) { option in
-                        Text(option.title).tag(option)
-                    }
-                }
-                .pickerStyle(.menu)
-                .tint(.cyan)
-            }
-            .consolePanel()
-        }
-    }
-}
-
-private struct PreferenceFader: View {
-    let title: LocalizedStringResource
-    let low: LocalizedStringResource
-    let high: LocalizedStringResource
-    @Binding var value: Double
-    let tint: Color
-
-    var body: some View {
-        VStack(spacing: 8) {
-            Text(title)
-                .font(.caption2.bold())
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Slider(value: $value, in: 0...1, step: 0.1)
-                .tint(tint)
-            DetentScale(steps: 10, tint: tint, selectedStep: Int((value * 10).rounded()))
-            HStack {
-                Text(low)
-                Spacer()
-                Text(high)
-            }
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(.secondary)
-        }
-    }
-}
-
-private struct AdjustmentNote: View {
-    let note: LocalizedStringResource
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "wand.and.stars")
-                .foregroundStyle(.cyan)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("REMIX APPLIED")
-                    .font(.caption2.bold())
-                    .foregroundStyle(.cyan)
-                Text(note)
-                    .font(.subheadline)
-                    .foregroundStyle(.white)
-            }
-            Spacer()
-        }
-        .consolePanel()
-    }
-}
-
-private struct MixerHeader: View {
-    let name: String
-    let volume: Int
-    let strength: Int
-    let fit: Int
-    let canUndo: Bool
-    let undo: () -> Void
-    let reset: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("NOW MIXING")
-                        .font(.caption2.bold())
-                        .foregroundStyle(.cyan)
-                    Text(name)
-                        .font(.largeTitle.bold())
-                        .foregroundStyle(.white)
-                        .lineLimit(2)
-                }
-                Spacer()
-                HStack(spacing: 8) {
-                    Button(action: undo) { Image(systemName: "arrow.uturn.backward") }
-                        .disabled(!canUndo)
-                        .accessibilityLabel("Undo last mixer change")
-                    Button(action: reset) { Image(systemName: "arrow.counterclockwise") }
-                        .accessibilityLabel("Reset mixer")
-                }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.circle)
-            }
-            HStack(spacing: 0) {
-                Metric(value: "\(volume) ml", title: "VOLUME")
-                Metric(value: "\(strength)%", title: "ABV")
-                Metric(value: "\(fit)%", title: "FIT")
-            }
-            .padding(.vertical, 10)
-            .background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 14))
-        }
-    }
-}
-
-private struct Metric: View {
-    let value: String
-    let title: String
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Text(value)
-                .font(.headline.monospacedDigit())
-                .contentTransition(.numericText())
-            Text(title)
-                .font(.caption2.bold())
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
-private struct DrinkPreview: View {
-    let fill: Double
-    let palette: DrinkPalette
-    let flavourNames: [String]
-    let flavourValues: [Double]
-    var compact = false
-
-    var body: some View {
-        ZStack {
-            Circle().fill(palette.primary.opacity(0.2)).blur(radius: 26)
-            ZStack(alignment: .bottom) {
-                glassShape.fill(.white.opacity(0.05))
-                glassShape
-                    .fill(
-                        Gradient(colors: [palette.highlight, palette.primary, palette.shadow])
-                            .colorSpace(.perceptual)
-                    )
-                    .frame(height: 126 * fill)
-                    .padding(5)
-            }
-            .frame(width: 108, height: 136)
-            .overlay { glassShape.stroke(.white.opacity(0.24), lineWidth: 1.5) }
-            .shadow(color: palette.primary.opacity(0.55), radius: 26)
-
-            FlavourParticles(names: flavourNames, values: flavourValues)
-                .frame(width: 190, height: compact ? 118 : 160)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: compact ? 118 : 160)
-        .scaleEffect(compact ? 0.72 : 1)
-        .padding(.vertical, compact ? -14 : 0)
-        .animation(.bouncy, value: fill)
-        .animation(.easeInOut(duration: 0.35), value: palette)
-        .accessibilityLabel("Drink preview, \(Int(fill * 100)) percent full")
-    }
-
-    private var glassShape: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(
-            topLeadingRadius: 8,
-            bottomLeadingRadius: 38,
-            bottomTrailingRadius: 38,
-            topTrailingRadius: 8
-        )
-    }
-}
-
-private struct DrinkPalette: Equatable {
-    let hue: Double
-    let saturation: Double
-    let brightness: Double
-
-    var primary: Color {
-        Color(hue: hue, saturation: saturation, brightness: brightness)
-    }
-
-    var highlight: Color {
-        Color(
-            hue: (hue + 0.035).truncatingRemainder(dividingBy: 1),
-            saturation: saturation * 0.72,
-            brightness: min(1, brightness + 0.08)
-        )
-    }
-
-    var shadow: Color {
-        Color(
-            hue: hue,
-            saturation: min(0.78, saturation + 0.08),
-            brightness: brightness * 0.68
-        )
-    }
-
-    init(names: [String], values: [Double]) {
-        let pairs = zip(names, values)
-        var x = 0.0
-        var y = 0.0
-        var weight = 0.0
-
-        for (name, value) in pairs {
-            let normalized = max(0, value)
-            let angle = FlavourColor.hue(for: name) * 2 * Double.pi
-            x += cos(angle) * normalized
-            y += sin(angle) * normalized
-            weight += normalized
-        }
-
-        let resolvedHue = weight > 0 ? atan2(y, x) / (2 * Double.pi) : 0.52
-        hue = resolvedHue < 0 ? resolvedHue + 1 : resolvedHue
-        saturation = min(0.7, 0.48 + weight / 240)
-        brightness = min(0.96, 0.78 + weight / 300)
-    }
-}
-
-private enum FlavourColor {
-    static func hue(for name: String) -> Double {
-        let name = name.lowercased()
-        if name.contains("sweet") || name.contains("fruit") { return 0.94 }
-        if name.contains("sour") { return 0.13 }
-        if name.contains("spicy") { return 0.035 }
-        if name.contains("bitter") { return 0.085 }
-        if name.contains("herbal") { return 0.42 }
-        if name.contains("smoky") { return 0.75 }
-        if name.contains("fizz") { return 0.52 }
-        return 0.55
-    }
-
-    static func color(for name: String) -> Color {
-        Color(hue: hue(for: name), saturation: 0.68, brightness: 0.98)
-    }
-}
-
-private struct FlavourParticles: View {
-    let names: [String]
-    let values: [Double]
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { timeline in
-            Canvas { context, size in
-                let time = timeline.date.timeIntervalSinceReferenceDate
-                drawSweetGlow(in: &context, size: size)
-                drawSourPops(in: &context, size: size, time: time)
-                drawSpicySparks(in: &context, size: size, time: time)
-                drawFizz(in: &context, size: size, time: time)
-            }
-        }
-    }
-
-    private var sweet: Double { intensity(matching: "sweet") }
-    private var sour: Double { intensity(matching: "sour") }
-    private var spicy: Double { intensity(matching: "spicy") }
-    private var fizz: Double { intensity(matching: "fizz") }
-
-    private func intensity(matching term: String) -> Double {
-        zip(names, values)
-            .first { $0.0.lowercased().contains(term) }
-            .map { $0.1 } ?? 0
-    }
-
-    private func drawSweetGlow(in context: inout GraphicsContext, size: CGSize) {
-        guard sweet > 2 else { return }
-        context.drawLayer { layer in
-            layer.addFilter(.blur(radius: 8))
-            let diameter = 34 + sweet * 1.8
-            let rect = CGRect(
-                x: size.width * 0.5 - diameter / 2,
-                y: size.height * 0.58 - diameter / 2,
-                width: diameter,
-                height: diameter
-            )
-            layer.fill(Path(ellipseIn: rect), with: .color(.pink.opacity(0.08 + sweet / 180)))
-        }
-    }
-
-    private func drawSourPops(
-        in context: inout GraphicsContext,
-        size: CGSize,
-        time: TimeInterval
-    ) {
-        let count = Int(sour / 3)
-        for index in 0..<count {
-            let pulse = (sin(time * 4 + Double(index) * 1.7) + 1) / 2
-            let diameter = 5 + pulse * 8
-            let x = size.width * (0.22 + Double((index * 37) % 60) / 100)
-            let y = size.height * (0.2 + Double((index * 29) % 55) / 100)
-            let rect = CGRect(x: x, y: y, width: diameter, height: diameter)
-            context.stroke(
-                Path(ellipseIn: rect),
-                with: .color(.yellow.opacity(0.35 + pulse * 0.5)),
-                lineWidth: 1.5
-            )
-        }
-    }
-
-    private func drawSpicySparks(
-        in context: inout GraphicsContext,
-        size: CGSize,
-        time: TimeInterval
-    ) {
-        let count = Int(spicy / 2)
-        let center = CGPoint(x: size.width / 2, y: size.height * 0.55)
-        for index in 0..<count {
-            let angle = Double(index) * 2.4 + time * 0.9
-            let radius = 55 + sin(time * 3 + Double(index)) * 12
-            let start = CGPoint(
-                x: center.x + cos(angle) * radius,
-                y: center.y + sin(angle) * radius * 0.65
-            )
-            let end = CGPoint(
-                x: start.x + cos(angle) * 10,
-                y: start.y + sin(angle) * 10
-            )
-            var path = Path()
-            path.move(to: start)
-            path.addLine(to: end)
-            context.stroke(path, with: .color(.orange.opacity(0.82)), lineWidth: 2)
-        }
-    }
-
-    private func drawFizz(
-        in context: inout GraphicsContext,
-        size: CGSize,
-        time: TimeInterval
-    ) {
-        let count = Int(fizz / 2)
-        for index in 0..<count {
-            let progress = (time * (0.18 + Double(index % 3) * 0.03) + Double(index) * 0.13)
-                .truncatingRemainder(dividingBy: 1)
-            let diameter = 3 + Double(index % 3) * 1.5
-            let x = size.width * (0.3 + Double((index * 23) % 42) / 100)
-            let y = size.height * (0.82 - progress * 0.65)
-            context.fill(
-                Path(ellipseIn: CGRect(x: x, y: y, width: diameter, height: diameter)),
-                with: .color(.cyan.opacity(0.45 + progress * 0.35))
-            )
-        }
-    }
-}
-
-private struct DetentScale: View {
-    let steps: Int
-    let tint: Color
-    let selectedStep: Int
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(0...steps, id: \.self) { index in
-                Capsule()
-                    .fill(index <= selectedStep ? tint : .white.opacity(0.16))
-                    .frame(width: index == 0 || index == steps ? 2 : 1, height: index % 5 == 0 ? 8 : 4)
-                if index < steps { Spacer() }
-            }
-        }
-        .frame(height: 8)
-        .animation(.snappy, value: selectedStep)
-        .accessibilityHidden(true)
-    }
-}
-
-private struct KnobDetents: View {
-    let value: Int
-    let tint: Color
-
-    var body: some View {
-        ZStack {
-            ForEach(0...20, id: \.self) { index in
-                Capsule()
-                    .fill(index <= value ? tint : .white.opacity(0.14))
-                    .frame(width: index % 5 == 0 ? 3 : 2, height: index % 5 == 0 ? 10 : 6)
-                    .offset(y: -52)
-                    .rotationEffect(.degrees(-135 + Double(index) / 20 * 270))
-            }
-        }
-        .animation(.snappy, value: value)
-        .accessibilityHidden(true)
-    }
-}
-
-private struct MixSummary: View {
-    let channels: [MixerChannel]
-    let volume: Int
-    let strength: Int
-    let fit: Int
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            DeckTitle(title: "FINAL TRACK", detail: "\(channels.count) channels")
-
-            ForEach(channels) { channel in
-                HStack {
-                    Circle()
-                        .fill(channel.tint)
-                        .frame(width: 8, height: 8)
-                    Text(channel.name)
-                        .font(.subheadline.weight(.semibold))
-                    Spacer()
-                    Text(channel.amount, format: .number.precision(.fractionLength(0)))
-                        .font(.subheadline.monospacedDigit().bold())
-                    Text(channel.unit)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Divider().overlay(.white.opacity(0.1))
-
-            HStack(spacing: 0) {
-                Metric(value: "\(volume) ml", title: "VOLUME")
-                Metric(value: "\(strength)%", title: "ABV")
-                Metric(value: "\(fit)%", title: "FIT")
-            }
-        }
-        .consolePanel()
-    }
-}
-
-private struct MixerStepNavigation: View {
-    let step: MixerStep
-    let canContinue: Bool
-    let back: () -> Void
-    let next: () -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            if step != .vibe {
-                Button(action: back) {
-                    Label("Back", systemImage: "chevron.left")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-            }
-
-            if step != .finish {
-                Button(action: next) {
-                    Label(step == .vibe ? "Generate my mix" : "Finish mix", systemImage: step == .vibe ? "sparkles" : "chevron.right")
-                        .labelStyle(TrailingIconLabelStyle())
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.cyan)
-                .foregroundStyle(.black)
-                .disabled(!canContinue)
-            }
-        }
-        .controlSize(.large)
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 4)
-        .background(.ultraThinMaterial)
-    }
-}
-
-private struct TrailingIconLabelStyle: LabelStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        HStack {
-            configuration.title
-            configuration.icon
-        }
-    }
-}
-
-private struct FlavourDeck: View {
-    let names: [String]
-    @Binding var values: [Double]
-    @Binding var activeKnob: Int?
-    let remember: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            DeckTitle(title: "FLAVOUR DECK", detail: "Drag the knobs")
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 18) {
-                ForEach(values.indices, id: \.self) { index in
-                    MixerKnob(
-                        name: names[index],
-                        value: $values[index],
-                        tint: FlavourColor.color(for: names[index]),
-                        isActive: activeKnob == index,
-                        begin: {
-                            if activeKnob != index {
-                                remember()
-                                activeKnob = index
-                            }
-                        },
-                        end: { activeKnob = nil }
-                    )
-                }
-            }
-        }
-        .consolePanel()
-    }
-}
-
-private struct MixerKnob: View {
-    let name: String
-    @Binding var value: Double
-    let tint: Color
-    let isActive: Bool
-    let begin: () -> Void
-    let end: () -> Void
-    @State private var startingValue = 0.0
-
-    var body: some View {
-        VStack(spacing: 8) {
-            ZStack {
-                KnobDetents(value: Int(value), tint: tint)
-                    .frame(width: 114, height: 114)
-
-                Circle()
-                    .stroke(.white.opacity(0.09), lineWidth: 10)
-                    .frame(width: 92, height: 92)
-                Circle()
-                    .trim(from: 0, to: value / 20)
-                    .stroke(
-                        AngularGradient(colors: [tint.opacity(0.35), tint, .white], center: .center),
-                        style: StrokeStyle(lineWidth: 10, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
-                    .frame(width: 92, height: 92)
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [tint.opacity(0.45), .black.opacity(0.96)],
-                            center: .topLeading,
-                            startRadius: 0,
-                            endRadius: 52
-                        )
-                    )
-                    .frame(width: 70, height: 70)
-                    .overlay {
-                        Capsule()
-                            .fill(tint)
-                            .frame(width: 4, height: 22)
-                            .offset(y: -21)
-                            .rotationEffect(.degrees(-135 + value / 20 * 270))
-                    }
-                    .shadow(color: tint.opacity(isActive ? 0.95 : 0.35), radius: isActive ? 18 : 8)
-                Text(value, format: .number.precision(.fractionLength(0)))
-                    .font(.headline.monospacedDigit().bold())
-                    .contentTransition(.numericText())
-            }
-            .frame(width: 118, height: 118)
-            .scaleEffect(isActive ? 1.07 : 1)
-            .animation(.bouncy, value: isActive)
-            .contentShape(Circle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { gesture in
-                        if !isActive {
-                            startingValue = value
-                            begin()
-                        }
-                        value = min(20, max(0, startingValue - gesture.translation.height / 5)).rounded()
-                    }
-                    .onEnded { _ in end() }
-            )
-            .accessibilityElement()
-            .accessibilityLabel(name)
-            .accessibilityValue("\(Int(value)) out of 20")
-            .accessibilityAdjustableAction { direction in
-                begin()
-                switch direction {
-                case .increment: value = min(20, value + 1)
-                case .decrement: value = max(0, value - 1)
-                @unknown default: break
-                }
-                end()
-            }
-            Text(name.uppercased())
-                .font(.caption2.bold())
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-private struct Crossfader: View {
-    @Binding var value: Double
-    let remember: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            DeckTitle(title: "CROSSFADER", detail: "How far should we push it?")
-            Slider(value: $value, in: 0...1, step: 0.1, onEditingChanged: { if $0 { remember() } })
-                .tint(.pink)
-            DetentScale(steps: 10, tint: .pink, selectedStep: Int((value * 10).rounded()))
-            HStack {
-                Label("Familiar", systemImage: "record.circle")
-                Spacer()
-                Label("Wildcard", systemImage: "sparkles")
-            }
-            .font(.caption2.bold())
-            .foregroundStyle(.secondary)
-        }
-        .consolePanel()
-    }
-}
-
-private struct ChannelDeck: View {
-    @Binding var channels: [MixerChannel]
-    let suggestions: [Ingredient]
-    let catalog: [String]
-    let remember: () -> Void
-    let add: (Ingredient) -> Void
-    let remove: (String) -> Void
-    @State private var showsIngredientPicker = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            DeckTitle(title: "INGREDIENT CHANNELS", detail: "Shape the recipe")
-            if channels.isEmpty {
-                ContentUnavailableView(
-                    "No channels loaded",
-                    systemImage: "slider.horizontal.3",
-                    description: Text("Add an ingredient below to start mixing.")
-                )
-            } else {
-                ForEach($channels) { $channel in
-                    IngredientFader(
-                        channel: $channel,
-                        remember: remember,
-                        remove: { remove(channel.id) }
-                    )
-                }
-            }
-            if !availableSuggestions.isEmpty {
-                DeckTitle(title: "SUGGESTED TO ADD", detail: "One tap")
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(availableSuggestions) { ingredient in
-                            Button { add(ingredient) } label: {
-                                SuggestionIngredientCard(
-                                    name: ingredient.name,
-                                    amount: ingredient.amount
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-            }
-
-            Button {
-                showsIngredientPicker = true
-            } label: {
-                Label("Browse all ingredients", systemImage: "plus.circle.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .tint(.cyan)
-        }
-        .consolePanel()
-        .sheet(isPresented: $showsIngredientPicker) {
-            IngredientPicker(
-                ingredients: catalog,
-                selectedNames: Set(channels.map(\.name))
-            ) { name in
-                add(Ingredient(name: name, amount: "15 ml"))
-            }
-        }
-    }
-
-    private var availableSuggestions: [Ingredient] {
-        suggestions.filter { suggestion in
-            !channels.contains { $0.name == suggestion.name }
-        }
-    }
-}
-
-private struct SuggestionIngredientCard: View {
-    let name: String
-    let amount: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack {
-                Circle()
-                    .fill(MixerChannel.tint(forIngredientNamed: name))
-                    .frame(width: 9, height: 9)
-                    .shadow(color: MixerChannel.tint(forIngredientNamed: name), radius: 4)
-                Spacer()
-                Image(systemName: "plus.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(.white, .cyan)
-            }
-            Spacer(minLength: 4)
-            Text(name)
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(.white)
-                .lineLimit(2)
-            Text(amount)
-                .font(.caption)
-                .foregroundStyle(.cyan)
-        }
-        .padding(12)
-        .frame(width: 126, height: 116)
-        .background(.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 17))
-        .overlay {
-            RoundedRectangle(cornerRadius: 17)
-                .stroke(.white.opacity(0.12), lineWidth: 1)
-        }
-    }
-}
-
-private struct IngredientPicker: View {
-    let ingredients: [String]
-    let selectedNames: Set<String>
-    let select: (String) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var searchText = ""
-
-    var body: some View {
-        NavigationStack {
-            List(filteredIngredients, id: \.self) { ingredient in
-                IngredientPickerRow(
-                    name: ingredient,
-                    isSelected: selectedNames.contains(ingredient)
-                ) {
-                    select(ingredient)
-                }
-            }
-            .searchable(text: $searchText, prompt: "Search ingredients")
-            .navigationTitle("Add ingredient")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-    }
-
-    private var filteredIngredients: [String] {
-        guard !searchText.isEmpty else { return ingredients }
-        return ingredients.filter { $0.localizedCaseInsensitiveContains(searchText) }
-    }
-}
-
-private struct IngredientPickerRow: View {
-    let name: String
-    let isSelected: Bool
-    let select: () -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Circle()
-                .fill(MixerChannel.tint(forIngredientNamed: name))
-                .frame(width: 10, height: 10)
-            Text(name)
-            Spacer()
-            if isSelected {
-                Label("Added", systemImage: "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                Button("Add", action: select)
-                    .buttonStyle(.bordered)
-                    .tint(.cyan)
-            }
-        }
-    }
-}
-
-private struct IngredientFader: View {
-    @Binding var channel: MixerChannel
-    let remember: () -> Void
-    let remove: () -> Void
-
-    var body: some View {
-        VStack(spacing: 7) {
-            HStack {
-                Circle()
-                    .fill(channel.tint)
-                    .frame(width: 8, height: 8)
-                    .shadow(color: channel.tint, radius: 4)
-                Text(channel.name).font(.subheadline.bold())
-                Spacer()
-                Text(channel.amount, format: .number.precision(.fractionLength(0)))
-                    .font(.subheadline.monospacedDigit().bold())
-                    .contentTransition(.numericText())
-                Text(channel.unit).font(.caption).foregroundStyle(.secondary)
-                Button(role: .destructive, action: remove) {
-                    Image(systemName: "xmark.circle.fill")
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel("Remove \(channel.name)")
-            }
-            Slider(value: $channel.amount, in: 0...120, step: 5, onEditingChanged: {
-                if $0 { remember() }
-            })
-            .tint(channel.tint)
-            .accessibilityLabel("\(channel.name) amount")
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-private struct FinishActions: View {
-    let taste: () -> Void
-    let remix: () -> Void
-
-    var body: some View {
-        VStack(spacing: 12) {
-            Button(action: taste) {
-                Label("I made it — taste check", systemImage: "mouth.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.cyan)
-            .foregroundStyle(.black)
-
-            HStack(spacing: 12) {
-                Button(action: remix) {
-                    Label("Remix", systemImage: "shuffle")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-
-                Button(action: {}) {
-                    Label("Save", systemImage: "square.and.arrow.down")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-            }
-        }
-        .controlSize(.large)
-    }
-}
-
-private enum TasteFeedback: String, CaseIterable, Identifiable {
-    case tooSweet
-    case tooSour
-    case tooStrong
-    case tooWeak
-    case needsSpark
-    case perfect
-
-    var id: Self { self }
-
-    var title: LocalizedStringResource {
-        switch self {
-        case .tooSweet: "Too sweet"
-        case .tooSour: "Too sour"
-        case .tooStrong: "Too strong"
-        case .tooWeak: "Too weak"
-        case .needsSpark: "Needs a spark"
-        case .perfect: "Perfect"
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .tooSweet: "cube.fill"
-        case .tooSour: "drop.triangle.fill"
-        case .tooStrong: "flame.fill"
-        case .tooWeak: "arrow.down"
-        case .needsSpark: "sparkles"
-        case .perfect: "checkmark.circle.fill"
-        }
-    }
-}
-
-private struct TasteFeedbackSheet: View {
-    let apply: (TasteFeedback) -> Void
-
-    var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("How did it land?")
-                        .font(.title.bold())
-                    Text("Pick the closest reaction. The mixer will rebalance the recipe for you.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                    ForEach(TasteFeedback.allCases) { feedback in
-                        Button {
-                            apply(feedback)
-                        } label: {
-                            VStack(spacing: 8) {
-                                Image(systemName: feedback.symbol)
-                                    .font(.title2)
-                                    .foregroundStyle(feedback == .perfect ? .green : .cyan)
-                                Text(feedback.title)
-                                    .font(.subheadline.weight(.semibold))
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 76)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                }
-                Spacer()
-            }
-            .padding()
-            .navigationTitle("Taste check")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-}
-
-private struct DeckTitle: View {
+private struct RemixSectionHeading: View {
     let title: String
     let detail: String
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title).font(.caption2.bold())
-            Spacer()
-            Text(detail).font(.caption2).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title).font(.title2.bold())
+            Text(detail).font(.caption).foregroundStyle(.secondary)
         }
     }
 }
 
-private struct MixerBackground: View {
+private struct RemixIngredientsSection: View {
+    let ingredients: [RemixIngredient]
+    let originals: [RemixIngredient]
+    let editable: Bool
+    let change: (RemixIngredient) -> Void
+    let remember: () -> Void
+    let swap: (UUID) -> Void
+    let remove: (UUID) -> Void
+    let add: () -> Void
+    @State private var deleting = false
+    @State private var visibleChannel: UUID?
+    @State private var visibleChannelIDs: Set<UUID> = []
+    @ScaledMetric(relativeTo: .body) private var minimumWidth = 104
+    private let addChannelID = UUID(uuid: (255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255))
+
     var body: some View {
-        ZStack {
-            Color.black
-            RadialGradient(
-                colors: [.cyan.opacity(0.12), .clear],
-                center: .topTrailing,
-                startRadius: 0,
-                endRadius: 340
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("CHANNELS").font(.caption.monospaced().bold()).foregroundStyle(.secondary)
+                Spacer()
+                Button("Add", systemImage: "plus", action: add).disabled(!editable)
+                Button(deleting ? "Done" : "Delete", systemImage: deleting ? "checkmark" : "trash") {
+                    deleting.toggle()
+                }
+                .tint(deleting ? .cyan : .red)
+                .disabled(!editable || (ingredients.isEmpty && !deleting))
+            }
+            .font(.subheadline).frame(minHeight: 44)
+            ScrollView(.horizontal) {
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach(ingredients) { ingredient in
+                        RemixIngredientChannel(
+                            ingredient: ingredient,
+                            original: originals.first { $0.id == ingredient.id },
+                            number: (ingredients.firstIndex { $0.id == ingredient.id } ?? 0) + 1,
+                            deleting: deleting,
+                            change: change, remember: remember,
+                            swap: { swap(ingredient.id) },
+                            remove: { remove(ingredient.id) }
+                        )
+                        .containerRelativeFrame(.horizontal, count: 3, spacing: 8)
+                        .frame(minWidth: minimumWidth)
+                        .disabled(!editable)
+                    }
+                    Button(action: add) {
+                        VStack(spacing: 12) {
+                            Image(systemName: "plus.circle").font(.largeTitle)
+                            Text("Add channel").font(.subheadline.weight(.semibold))
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 330)
+                        .background(.cyan.opacity(0.035), in: RoundedRectangle(cornerRadius: 14))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 14)
+                                .strokeBorder(.cyan.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .containerRelativeFrame(.horizontal, count: 3, spacing: 8)
+                    .frame(minWidth: minimumWidth)
+                    .id(addChannelID)
+                    .disabled(!editable)
+                }
+                .scrollTargetLayout().padding(.vertical, 3)
+            }
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $visibleChannel, anchor: .leading)
+            .scrollIndicators(.hidden)
+            .onScrollTargetVisibilityChange(idType: UUID.self, threshold: 0.5) { ids in
+                visibleChannelIDs = Set(ids)
+            }
+            RemixChannelNavigator(
+                ingredients: ingredients,
+                visibleIDs: visibleChannelIDs,
+                canGoNext: !visibleChannelIDs.contains(addChannelID),
+                select: { id in withAnimation { visibleChannel = id } },
+                previous: {
+                    let first = ingredients.firstIndex { visibleChannelIDs.contains($0.id) } ?? 0
+                    withAnimation { visibleChannel = ingredients[max(0, first - 1)].id }
+                },
+                next: {
+                    let first = ingredients.firstIndex { visibleChannelIDs.contains($0.id) } ?? 0
+                    withAnimation {
+                        visibleChannel = first + 1 < ingredients.count ? ingredients[first + 1].id : addChannelID
+                    }
+                }
             )
+            .disabled(ingredients.isEmpty)
+            Text(deleting ? "Tap a channel’s red trash button to remove it." : "White marker = original · tap an amount to type")
+                .font(.caption2).foregroundStyle(.secondary)
         }
-        .ignoresSafeArea()
     }
 }
 
-private struct MixerChannel: Identifiable, Equatable {
-    let id: String
-    let name: String
-    var amount: Double
-    let unit: String
-    let tint: Color
-    let isSpirit: Bool
+private struct RemixChannelNavigator: View {
+    let ingredients: [RemixIngredient]
+    let visibleIDs: Set<UUID>
+    let canGoNext: Bool
+    let select: (UUID) -> Void
+    let previous: () -> Void
+    let next: () -> Void
 
-    init(name: String, amount: Double, unit: String = "ml", isSpirit: Bool = false) {
-        id = name
-        self.name = name
-        self.amount = amount
-        self.unit = unit
-        self.isSpirit = isSpirit
-        tint = isSpirit ? .cyan : Self.tint(forIngredientNamed: name)
+    private var visibleIndices: [Int] {
+        ingredients.indices.filter { visibleIDs.contains(ingredients[$0].id) }
     }
 
-    init(ingredient: Ingredient) {
-        id = ingredient.name
-        name = ingredient.name
-        let parts = ingredient.amount.split(separator: " ")
-        amount = Double(parts.first ?? "") ?? 15
-        let parsedUnit = parts.dropFirst().joined(separator: " ")
-        unit = parsedUnit.isEmpty ? "ml" : parsedUnit
-        let lowercasedName = ingredient.name.lowercased()
-        isSpirit = ["gin", "rum", "vodka", "tequila", "whisky", "whiskey", "bourbon", "liqueur"]
-            .contains { lowercasedName.contains($0) }
-        tint = isSpirit ? .cyan : Self.tint(forIngredientNamed: lowercasedName)
+    var body: some View {
+        HStack(spacing: 8) {
+            Button("Previous channel", systemImage: "chevron.left", action: previous)
+                .labelStyle(.iconOnly).frame(width: 32, height: 44)
+                .disabled(visibleIndices.first == 0)
+            GeometryReader { geometry in
+                let count = max(1, ingredients.count)
+                let gap: CGFloat = 4
+                let segmentWidth = max(0, (geometry.size.width - gap * CGFloat(count - 1)) / CGFloat(count))
+                let first = visibleIndices.first ?? 0
+                let last = visibleIndices.last ?? min(2, count - 1)
+                HStack(spacing: gap) {
+                    ForEach(ingredients) { ingredient in
+                        Button { select(ingredient.id) } label: {
+                            Capsule()
+                                .fill(RemixChannelStyle.tint(for: ingredient.name))
+                                .opacity(visibleIDs.contains(ingredient.id) ? 1 : 0.3)
+                                .frame(height: 6)
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        }
+                        .accessibilityLabel("Show \(ingredient.name)")
+                        .accessibilityAddTraits(visibleIDs.contains(ingredient.id) ? .isSelected : [])
+                    }
+                }
+                .overlay(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 5)
+                        .strokeBorder(.white.opacity(0.85), lineWidth: 1)
+                        .frame(width: segmentWidth * CGFloat(last - first + 1) + gap * CGFloat(last - first), height: 16)
+                        .offset(x: CGFloat(first) * (segmentWidth + gap))
+                        .allowsHitTesting(false)
+                }
+                .overlay(alignment: .topLeading) {
+                    HStack(spacing: 0) {
+                        Rectangle().fill(.white).frame(width: 2, height: 4)
+                        Spacer(minLength: 0)
+                        Rectangle().fill(.white).frame(width: 2, height: 4)
+                    }
+                    .frame(width: segmentWidth * CGFloat(last - first + 1) + gap * CGFloat(last - first))
+                    .offset(x: CGFloat(first) * (segmentWidth + gap), y: 10)
+                    .allowsHitTesting(false)
+                }
+            }
+            .frame(height: 44)
+            Button("Next channel", systemImage: "chevron.right", action: next)
+                .labelStyle(.iconOnly).frame(width: 32, height: 44)
+                .disabled(!canGoNext)
+        }
+        .tint(.cyan)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Channel overview. Outlined colors are on screen.")
     }
+}
 
-    static func tint(forIngredientNamed name: String) -> Color {
+private enum RemixChannelStyle {
+    static func tint(for name: String) -> Color {
         let name = name.lowercased()
-        if name.contains("lemon") || name.contains("lime") { return .yellow }
-        if name.contains("mint") || name.contains("basil") { return .green }
-        if name.contains("berry") || name.contains("grenadine") { return .pink }
-        return .orange
+        if ["lime", "lemon", "grapefruit", "citrus"].contains(where: { name.contains($0) }) { return .green }
+        if ["syrup", "honey", "agave", "liqueur", "curaçao"].contains(where: { name.contains($0) }) { return .orange }
+        if ["mint", "herb", "rosemary", "cucumber"].contains(where: { name.contains($0) }) { return .mint }
+        if ["soda", "ice", "tonic", "water"].contains(where: { name.contains($0) }) { return .blue }
+        return .cyan
     }
 }
 
-private struct MixerSnapshot: Equatable {
-    let flavours: [Double]
-    let channels: [MixerChannel]
-    let adventure: Double
+private struct RemixIngredientChannel: View {
+    let ingredient: RemixIngredient
+    let original: RemixIngredient?
+    let number: Int
+    let deleting: Bool
+    let change: (RemixIngredient) -> Void
+    let remember: () -> Void
+    let swap: () -> Void
+    let remove: () -> Void
+    private var tint: Color { RemixChannelStyle.tint(for: ingredient.name) }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Text(String(format: "CH %02d", number)).font(.caption2.monospaced().bold())
+                Spacer(minLength: 0)
+                Circle().fill(tint).frame(width: 6, height: 6)
+            }
+            .foregroundStyle(.secondary)
+            Text(ingredient.name).font(.subheadline.weight(.semibold))
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, minHeight: 42, alignment: .top)
+                .fixedSize(horizontal: false, vertical: true)
+            RemixAmountField(
+                amount: ingredient.amount, unit: ingredient.unit,
+                name: ingredient.name, tint: tint, remember: remember, change: updateAmount
+            )
+            RemixVerticalFader(
+                value: Binding(get: { ingredient.amount }, set: updateAmount),
+                original: original?.unit == ingredient.unit ? original?.amount : nil,
+                maximum: max(ingredient.unit == "ml" ? 150 : 20, original?.amount ?? 0, ingredient.amount),
+                tint: tint, label: ingredient.name, unit: ingredient.unit, remember: remember
+            )
+            .frame(height: 140)
+            Text(changeDescription).font(.caption2.monospaced())
+                .foregroundStyle(.secondary).multilineTextAlignment(.center).frame(minHeight: 24)
+            if deleting {
+                Button("Delete", systemImage: "trash", role: .destructive, action: remove)
+                    .font(.caption.weight(.semibold)).buttonStyle(.bordered).tint(.red).frame(minHeight: 44)
+                    .accessibilityLabel("Delete \(ingredient.name)")
+            } else {
+                Button("Swap", systemImage: "arrow.triangle.2.circlepath", action: swap)
+                    .font(.caption.weight(.semibold)).buttonStyle(.bordered).tint(tint).frame(minHeight: 44)
+            }
+        }
+        .padding(10)
+        .background(
+            LinearGradient(colors: [Color(white: 0.115), Color(white: 0.065)], startPoint: .top, endPoint: .bottom),
+            in: RoundedRectangle(cornerRadius: 14)
+        )
+        .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(deleting ? .red.opacity(0.6) : .white.opacity(0.12)) }
+        .overlay(alignment: .top) {
+            RoundedRectangle(cornerRadius: 2).fill(tint).frame(height: 3).padding(.horizontal, 12)
+                .accessibilityHidden(true)
+        }
+    }
+
+    private func updateAmount(_ amount: Double) {
+        var updated = ingredient
+        updated.amount = amount
+        change(updated)
+    }
+
+    private var changeDescription: String {
+        guard let original else { return "" }
+        if original.name != ingredient.name { return "SWAPPED" }
+        if original.amount == ingredient.amount { return "ORIGINAL" }
+        let difference = ingredient.amount - original.amount
+        return "\(difference > 0 ? "+" : "")\(difference.formatted()) \(ingredient.unit)"
+    }
 }
 
-private extension View {
-    func consolePanel() -> some View {
-        padding(16)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+private struct RemixAmountField: View {
+    let amount: Double
+    let unit: String
+    let name: String
+    let tint: Color
+    let remember: () -> Void
+    let change: (Double) -> Void
+    @State private var input = ""
+    @State private var selection: TextSelection?
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(spacing: 1) {
+            TextField("Amount", text: $input, selection: $selection)
+                .font(.title2.monospacedDigit().bold())
+                .multilineTextAlignment(.center)
+                .keyboardType(.decimalPad)
+                .focused($focused)
+                .accessibilityLabel("\(name) amount in \(unit)")
+                .onChange(of: input) { _, text in
+                    guard focused,
+                          let value = Double(text.replacingOccurrences(of: ",", with: ".")),
+                          value.isFinite, (0...1000).contains(value) else { return }
+                    change(value)
+                }
+            Text(unit).font(.caption)
+        }
+        .foregroundStyle(tint)
+        .frame(maxWidth: .infinity, minHeight: 52)
+        .background(.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
+        .onAppear { input = formattedAmount }
+        .onChange(of: amount) { _, _ in if !focused { input = formattedAmount } }
+        .onChange(of: focused) { _, editing in
+            if editing {
+                remember()
+                selection = TextSelection(range: input.startIndex..<input.endIndex)
+            } else {
+                input = formattedAmount
+            }
+        }
+        .toolbar {
+            if focused {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { focused = false }
+                }
+            }
+        }
+    }
+
+    private var formattedAmount: String {
+        amount.formatted(.number.grouping(.never).precision(.fractionLength(0...1)))
+    }
+}
+
+private struct RemixVerticalFader: View {
+    @Binding var value: Double
+    let original: Double?
+    let maximum: Double
+    let tint: Color
+    let label: String
+    let unit: String
+    let remember: () -> Void
+    @State private var dragStart: Double?
+    @State private var dragMaximum: Double?
+
+    var body: some View {
+        GeometryReader { geometry in
+            let travel = max(1, geometry.size.height - 30)
+            let limit = dragMaximum ?? maximum
+            let fraction = min(1, max(0, value / limit))
+            ZStack {
+                VStack {
+                    ForEach(0..<11) { tick in
+                        HStack {
+                            Rectangle().fill(.white.opacity(0.2)).frame(width: tick % 5 == 0 ? 14 : 7, height: 1)
+                            Spacer()
+                            Rectangle().fill(.white.opacity(0.2)).frame(width: tick % 5 == 0 ? 14 : 7, height: 1)
+                        }
+                        if tick < 10 { Spacer(minLength: 0) }
+                    }
+                }
+                .padding(.vertical, 15)
+                Capsule().fill(.black).frame(width: 7).padding(.vertical, 15)
+                Capsule().fill(tint.opacity(0.5))
+                    .frame(width: 3, height: travel * fraction)
+                    .position(x: geometry.size.width / 2, y: 15 + travel - travel * fraction / 2)
+                if let original {
+                    Rectangle().fill(.white).frame(width: 20, height: 2)
+                        .position(x: geometry.size.width / 2 + 17, y: 15 + travel * (1 - min(1, original / limit)))
+                }
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(LinearGradient(colors: [.gray, Color(white: 0.2), Color(white: 0.42)], startPoint: .top, endPoint: .bottom))
+                    .frame(width: 46, height: 30)
+                    .overlay {
+                        VStack(spacing: 3) {
+                            Rectangle().fill(.black.opacity(0.5)).frame(height: 1)
+                            Rectangle().fill(tint).frame(height: 2)
+                            Rectangle().fill(.black.opacity(0.5)).frame(height: 1)
+                        }
+                        .padding(.horizontal, 5)
+                    }
+                    .shadow(color: .black.opacity(0.6), radius: 3, y: 3)
+                    .frame(width: 60, height: 50).contentShape(Rectangle())
+                    .position(x: geometry.size.width / 2, y: 15 + travel * (1 - fraction))
+                    .gesture(
+                        DragGesture(minimumDistance: 2, coordinateSpace: .global)
+                            .onChanged { event in
+                                if dragStart == nil {
+                                    remember()
+                                    dragStart = value
+                                    dragMaximum = maximum
+                                }
+                                value = min(limit, max(0, (dragStart ?? value) - Double(event.translation.height / travel) * limit)).rounded()
+                            }
+                            .onEnded { _ in
+                                dragStart = nil
+                                dragMaximum = nil
+                            }
+                    )
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label) amount")
+        .accessibilityValue("\(value.formatted()) \(unit)")
+        .accessibilityHint("Swipe up or down to adjust. Tap the amount above for exact entry.")
+        .accessibilityAdjustableAction { direction in
+            remember()
+            switch direction {
+            case .increment: value = min(maximum, value + 1)
+            case .decrement: value = max(0, value - 1)
+            @unknown default: break
+            }
+        }
+    }
+}
+
+private struct RemixPreparationSection: View {
+    let steps: [RemixPreparationStep]
+    @Binding var expanded: UUID?
+    let editable: Bool
+    let change: (RemixPreparationStep) -> Void
+    let remove: (UUID) -> Void
+    let move: (UUID, Int) -> Void
+    let reorder: (UUID, UUID) -> Void
+    let add: (PreparationMethod) -> Void
+    @State private var targetedStep: UUID?
+    @State private var dragNamespace = UUID().uuidString
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                RemixSectionHeading(title: "Preparation rack", detail: "Hold the grip and drag to reorder")
+                Spacer()
+                Menu {
+                    ForEach(PreparationMethod.allCases) { method in
+                        Button(method.rawValue) { add(method) }
+                    }
+                } label: {
+                    Label("Add", systemImage: "plus")
+                }
+                .disabled(!editable)
+            }
+            ForEach(steps) { step in
+                RemixStepCard(
+                    step: step,
+                    number: (steps.firstIndex(where: { $0.id == step.id }) ?? 0) + 1,
+                    expanded: editable && expanded == step.id,
+                    dragToken: "drinkdj.preparation.\(dragNamespace).\(step.id.uuidString)",
+                    toggle: { expanded = expanded == step.id ? nil : step.id },
+                    change: change,
+                    remove: { remove(step.id) },
+                    moveUp: { move(step.id, -1) },
+                    moveDown: { move(step.id, 1) },
+                    canMoveUp: steps.first?.id != step.id,
+                    canMoveDown: steps.last?.id != step.id
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16)
+                        .strokeBorder(targetedStep == step.id ? .cyan : .clear, lineWidth: 2)
+                        .allowsHitTesting(false)
+                }
+                .dropDestination(for: String.self) { values, _ in
+                    guard editable, let token = values.first else { return false }
+                    let prefix = "drinkdj.preparation.\(dragNamespace)."
+                    guard token.hasPrefix(prefix),
+                          let source = UUID(uuidString: String(token.dropFirst(prefix.count))),
+                          steps.contains(where: { $0.id == source }) else { return false }
+                    reorder(source, step.id)
+                    targetedStep = nil
+                    return true
+                } isTargeted: { targeted in
+                    targetedStep = targeted && editable ? step.id : nil
+                }
+                .disabled(!editable)
+            }
+            if steps.isEmpty {
+                Text("Add a preparation step to guide someone making your remix.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+private struct RemixStepCard: View {
+    let step: RemixPreparationStep
+    let number: Int
+    let expanded: Bool
+    let dragToken: String
+    let toggle: () -> Void
+    let change: (RemixPreparationStep) -> Void
+    let remove: () -> Void
+    let moveUp: () -> Void
+    let moveDown: () -> Void
+    let canMoveUp: Bool
+    let canMoveDown: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 16) {
+                Button(action: toggle) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(String(format: "FX %02d", number))
+                            .font(.caption2.monospaced().bold()).foregroundStyle(.cyan)
+                        Label(step.method.rawValue, systemImage: step.method.symbol).font(.headline)
+                        Text(step.method.isTimed ? step.ice : step.summary)
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 66, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                // A reserved center column keeps the knob fixed when settings expand.
+                VStack {
+                    if step.method.isTimed {
+                        RemixMiniDurationKnob(value: binding(\.seconds))
+                    } else {
+                        Image(systemName: step.method.symbol)
+                            .font(.title2).foregroundStyle(.secondary)
+                            .frame(width: 48, height: 63)
+                    }
+                }
+                .frame(width: 72)
+                Button(action: toggle) {
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                        .font(.caption).frame(width: 32, height: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(expanded ? "Collapse preparation settings" : "Expand preparation settings")
+                Image(systemName: "line.3.horizontal")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 32, height: 52)
+                    .contentShape(Rectangle())
+                    .draggable(dragToken)
+                    .accessibilityLabel("Drag \(step.method.rawValue) to reorder")
+            }
+            if expanded {
+                Divider()
+                Picker("Method", selection: Binding(
+                    get: { step.method },
+                    set: { method in
+                        var updated = step
+                        updated.method = method
+                        updated.seconds = method.seconds
+                        updated.intensity = method == .shake ? "Vigorous" : "Gentle"
+                        change(updated)
+                    }
+                )) {
+                    ForEach(PreparationMethod.allCases) { method in
+                        Text(method.rawValue).tag(method)
+                    }
+                }
+                Text(step.method.guidance).font(.subheadline).foregroundStyle(.secondary)
+                if step.method.isTimed {
+                    HStack {
+                        Text("Suggested: \(Int(step.method.seconds)) sec").font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Reset duration") {
+                            var updated = step
+                            updated.seconds = step.method.seconds
+                            change(updated)
+                        }
+                        .font(.caption).frame(minHeight: 44)
+                    }
+                    RemixChoicePicker(title: "Intensity", selection: binding(\.intensity), choices: ["Gentle", "Moderate", "Vigorous"])
+                }
+                if step.method.isTimed || step.method == .serve {
+                    RemixChoicePicker(title: "Ice", selection: binding(\.ice), choices: ["Cubed ice", "Crushed ice", "Large cube", "No ice"])
+                }
+                if step.method == .strain {
+                    RemixChoicePicker(title: "Straining", selection: binding(\.straining), choices: ["Single strain", "Double strain"])
+                }
+                if step.method == .serve {
+                    RemixChoicePicker(title: "Glass", selection: binding(\.glass), choices: ["Rocks glass", "Highball", "Coupe", "Martini glass"])
+                    TextField("Garnish or finishing notes", text: binding(\.garnish))
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityLabel("Garnish or finishing notes")
+                }
+                HStack {
+                    Button("Move up", systemImage: "arrow.up", action: moveUp)
+                        .labelStyle(.iconOnly).disabled(!canMoveUp)
+                    Button("Move down", systemImage: "arrow.down", action: moveDown)
+                        .labelStyle(.iconOnly).disabled(!canMoveDown)
+                    Spacer()
+                    Button("Remove", systemImage: "minus.circle", role: .destructive, action: remove)
+                }
+                .frame(minHeight: 44)
+            }
+        }
+        .remixCard()
+    }
+
+    private func binding<Value>(_ path: WritableKeyPath<RemixPreparationStep, Value>) -> Binding<Value> {
+        Binding(get: { step[keyPath: path] }, set: { value in
+            var updated = step
+            updated[keyPath: path] = value
+            change(updated)
+        })
+    }
+}
+
+private struct RemixMiniDurationKnob: View {
+    @Binding var value: Double
+    @State private var dragStart: Double?
+    @State private var preview: Double?
+    private var displayed: Double { preview ?? value }
+
+    var body: some View {
+        VStack(spacing: 3) {
+            ZStack {
+                Circle().trim(from: 0, to: 0.75)
+                    .stroke(.white.opacity(0.15), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .rotationEffect(.degrees(135))
+                Circle().trim(from: 0, to: (displayed - 5) / 115 * 0.75)
+                    .stroke(.cyan, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .rotationEffect(.degrees(135))
+                Circle().fill(
+                    LinearGradient(colors: [Color(white: 0.3), Color(white: 0.1)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                )
+                .padding(6)
+                Capsule().fill(.cyan).frame(width: 2, height: 8).offset(y: -12)
+                    .rotationEffect(.degrees(-135 + (displayed - 5) / 115 * 270))
+            }
+            .frame(width: 48, height: 48)
+            Text("\(Int(displayed)) s").font(.caption2.monospacedDigit()).foregroundStyle(.cyan)
+        }
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 3)
+                .onChanged { event in
+                    if dragStart == nil { dragStart = value }
+                    preview = min(120, max(5, (dragStart ?? value) - Double(event.translation.height))).rounded()
+                }
+                .onEnded { _ in
+                    if let preview { value = preview }
+                    preview = nil
+                    dragStart = nil
+                }
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Preparation duration")
+        .accessibilityValue("\(Int(displayed)) seconds")
+        .accessibilityHint("Drag up or down, or swipe to adjust.")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: value = min(120, value + 1)
+            case .decrement: value = max(5, value - 1)
+            @unknown default: break
+            }
+        }
+    }
+}
+
+private struct RemixChoicePicker: View {
+    let title: String
+    @Binding var selection: String
+    let choices: [String]
+
+    var body: some View {
+        Picker(title, selection: $selection) {
+            ForEach(choices, id: \.self) { choice in Text(choice).tag(choice) }
+        }
+        .pickerStyle(.menu)
+        .frame(minHeight: 44)
+    }
+}
+
+private struct RemixSaveBar: View {
+    let recipe: RemixRecipe
+    let comparing: Bool
+    let disabled: Bool
+    let save: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                Circle().fill(comparing ? .white : .red).frame(width: 6, height: 6)
+                Text(comparing ? "A / ORIGINAL" : "SESSION / YOUR REMIX")
+                    .font(.caption2.monospaced().bold())
+                Spacer(minLength: 0)
+                Button("Save", systemImage: "record.circle", action: save)
+                    .font(.subheadline.weight(.semibold)).tint(.red).disabled(disabled)
+            }
+            .frame(minHeight: 32)
+            HStack(spacing: 12) {
+                ForEach(["Sweet", "Sour", "Bitter", "Strong"], id: \.self) { name in
+                    RemixIslandMeter(name: name, level: recipe.estimate(name))
+                }
+                Text("EST.").font(.caption2.monospaced()).foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .background(.black, in: RoundedRectangle(cornerRadius: 26))
+        .overlay {
+            RoundedRectangle(cornerRadius: 26)
+                .strokeBorder(Color.white.opacity(0.15))
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: recipe)
+        .padding(.horizontal, 12).padding(.vertical, 6)
+    }
+}
+
+private struct RemixIslandMeter: View {
+    let name: String
+    let level: Double
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(name).font(.caption2).foregroundStyle(.secondary)
+            HStack(spacing: 2) {
+                ForEach(0..<10) { index in
+                    let lit = level >= Double(index + 1) / 10
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(lit ? Color(hue: 0.5 - Double(index) / 9 * 0.43, saturation: 0.8, brightness: 0.95) : Color.white.opacity(0.1))
+                        .frame(height: 9)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(name), estimated")
+        .accessibilityValue("\(Int(level * 100)) out of 100")
+    }
+}
+
+private struct RemixIngredientPicker: View {
+    @Environment(\.dismiss) private var dismiss
+    let isSwapping: Bool
+    let select: (String, Double, String) -> Void
+    @State private var search = ""
+    @State private var customName = ""
+    @State private var customUnit = "ml"
+    private let catalog = ["Tequila", "Gin", "Vodka", "White rum", "Whisky", "Mezcal", "Lime juice", "Lemon juice", "Orange liqueur", "Blue curaçao", "Simple syrup", "Agave syrup", "Honey syrup", "Soda water", "Tonic", "Ginger beer", "Mint", "Cucumber", "Ice"]
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Choose an ingredient") {
+                    ForEach(catalog.filter { search.isEmpty || $0.localizedCaseInsensitiveContains(search) }, id: \.self) { name in
+                        Button(name) {
+                            let unit = name == "Mint" ? "leaves" : name == "Cucumber" ? "slices" : name == "Ice" ? "cubes" : "ml"
+                            select(name, unit == "ml" ? 20 : 3, unit)
+                        }
+                    }
+                }
+                Section("Try something else") {
+                    TextField("Ingredient name", text: $customName)
+                    RemixChoicePicker(title: "Unit", selection: $customUnit, choices: ["ml", "leaves", "slices", "dashes", "cubes", "portion"])
+                    Button("Use custom ingredient") {
+                        select(customName.trimmingCharacters(in: .whitespacesAndNewlines), customUnit == "ml" ? 20 : 1, customUnit)
+                    }
+                    .disabled(customName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .searchable(text: $search)
+            .navigationTitle(isSwapping ? "Swap ingredient" : "Add ingredient")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+        }
+        .tint(.cyan).preferredColorScheme(.dark)
+    }
+}
+
+private struct RemixSaveSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let recipe: RemixRecipe
+    let original: RemixRecipe
+    let parentLabel: String
+    let canCreateVariation: Bool
+    let initialName: String
+    let save: (String, String, Bool) throws -> Void
+    @State private var name = ""
+    @State private var separateIdea = false
+    @State private var message = ""
+    @State private var saveError: String?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    RemixSaveName(name: $name)
+                    RemixSavePlan(parentLabel: parentLabel, canCreateVariation: canCreateVariation, separateIdea: $separateIdea, message: $message)
+                    RemixSaveChanges(recipe: recipe, original: original)
+                    Text("Save now, make it when you’re ready. You can rate the taste after you’ve tried it.")
+                        .font(.caption).foregroundStyle(.secondary).padding(.horizontal, 8)
+                }
+                .padding(20)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .background(Color(red: 0.035, green: 0.055, blue: 0.075))
+            .navigationTitle("Save remix").navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save remix") {
+                        do {
+                            try save(
+                                name.trimmingCharacters(in: .whitespacesAndNewlines),
+                                message.trimmingCharacters(in: .whitespacesAndNewlines),
+                                separateIdea
+                            )
+                        } catch { saveError = error.localizedDescription }
+                    }
+                        .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .onAppear {
+                if name.isEmpty { name = initialName }
+            }
+            .alert("Remix not saved", isPresented: Binding(
+                get: { saveError != nil }, set: { if !$0 { saveError = nil } }
+            )) {
+                Button("OK") { saveError = nil }
+            } message: { Text(saveError ?? "") }
+        }
+        .preferredColorScheme(.dark).tint(.cyan)
+    }
+}
+
+private struct RemixSavePlan: View {
+    let parentLabel: String
+    let canCreateVariation: Bool
+    @Binding var separateIdea: Bool
+    @Binding var message: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Your earlier recipes stay safe", systemImage: "clock.arrow.circlepath")
+                .font(.subheadline.weight(.semibold)).foregroundStyle(.cyan)
+            Text("Based on \(parentLabel.lowercased()). Saving keeps this recipe alongside your earlier versions.")
+                .font(.caption).foregroundStyle(.secondary)
+            if canCreateVariation {
+                Toggle("Keep this as a separate idea", isOn: $separateIdea)
+                    .font(.subheadline)
+            }
+            TextField("Add a note, e.g. less lime (optional)", text: $message, axis: .vertical)
+                .lineLimit(2...4).accessibilityLabel("Note about this remix, optional")
+        }
+        .padding(16)
+        .modifier(RemixIslandSurface())
+    }
+}
+
+private struct RemixSaveName: View {
+    @Binding var name: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("NAME YOUR DRINK", systemImage: "record.circle")
+                .font(.caption.monospaced().bold()).foregroundStyle(.cyan)
+            TextField("Remix name", text: $name)
+                .font(.title3.weight(.semibold))
+                .padding(.vertical, 8)
+                .accessibilityLabel("Remix name")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+                    .modifier(RemixIslandSurface())
+    }
+}
+
+private struct RemixSaveChanges: View {
+    let recipe: RemixRecipe
+    let original: RemixRecipe
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("YOUR CHANGES").font(.caption.monospaced().bold()).foregroundStyle(.secondary)
+            ForEach(recipe.ingredients) { ingredient in
+                let baseline = original.ingredients.first { $0.id == ingredient.id }
+                if baseline != ingredient {
+                    HStack {
+                        Circle().fill(RemixChannelStyle.tint(for: ingredient.name)).frame(width: 6, height: 6)
+                        Text(ingredient.name)
+                        Spacer()
+                        Text(ingredient.quantity).monospacedDigit().foregroundStyle(.cyan)
+                    }
+                }
+            }
+            ForEach(original.ingredients) { ingredient in
+                if !recipe.ingredients.contains(where: { $0.id == ingredient.id }) {
+                    Label("Removed \(ingredient.name)", systemImage: "minus.circle")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if recipe.steps != original.steps {
+                Text("Preparation: \(recipe.steps.map { $0.method.rawValue }.joined(separator: " → "))")
+            }
+            if recipe == original { Text("Same recipe — saved so you can return to it later.") }
+        }
+        .font(.subheadline)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+                    .modifier(RemixIslandSurface())
+    }
+}
+
+private struct RemixIslandSurface: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .background(.black, in: RoundedRectangle(cornerRadius: 26))
             .overlay {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(.white.opacity(0.12), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 26)
+                    .strokeBorder(Color.white.opacity(0.15))
+                    .allowsHitTesting(false)
             }
     }
 }
 
-#Preview("Existing drink") {
-    NavigationStack {
-        MixerView(mix: MockData.blueLagoonDub)
+private extension View {
+    func remixCard() -> some View {
+        padding(16)
+            .background(
+                LinearGradient(colors: [Color(white: 0.105), Color(white: 0.065)], startPoint: .top, endPoint: .bottom),
+                in: RoundedRectangle(cornerRadius: 16)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(Color.white.opacity(0.09), lineWidth: 1)
+            }
     }
 }
 
-#Preview("New mix") {
+#Preview("Remix workspace") {
     NavigationStack {
         MixerView(mix: MockData.newMix)
     }
