@@ -1,4 +1,6 @@
 import SwiftUI
+import PhotosUI
+import UIKit
 
 struct ProfileView: View {
     @Environment(\.dismiss) private var dismiss
@@ -7,6 +9,8 @@ struct ProfileView: View {
     @State private var currentPassword = ""
     @State private var newPassword = ""
     @State private var repeatedPassword = ""
+    @State private var selectedProfilePhoto: PhotosPickerItem?
+    @State private var profilePhotoData: Data?
 
     @State private var showDeleteConfirmation = false
     @State private var activeAlert: ProfileAlert?
@@ -25,6 +29,12 @@ struct ProfileView: View {
         .background(Color.black.ignoresSafeArea())
         .preferredColorScheme(.dark)
         .toolbar(.hidden, for: .navigationBar)
+        .onChange(of: selectedProfilePhoto) { item in
+            guard let item else { return }
+            Task { @MainActor in
+                profilePhotoData = try? await item.loadTransferable(type: Data.self)
+            }
+        }
         .confirmationDialog(
             "Delete account?",
             isPresented: $showDeleteConfirmation,
@@ -53,10 +63,20 @@ struct ProfileView: View {
                 dismiss()
             } label: {
                 Image(systemName: "chevron.left")
-                    .frame(width: 44, height: 44)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 46, height: 46)
+                    .background {
+                        if #available(iOS 26, *) {
+                            Circle().fill(.clear)
+                                .glassEffect(.regular, in: .circle)
+                        } else {
+                            Circle().fill(.ultraThinMaterial)
+                        }
+                    }
+                    .overlay(Circle().stroke(.white.opacity(0.16), lineWidth: 1))
             }
-            .glassButtonStyle()
-            .buttonBorderShape(.circle)
+            .accessibilityLabel("Back")
 
             Spacer()
         }
@@ -80,15 +100,20 @@ struct ProfileView: View {
 
                 Spacer(minLength: 0)
 
-                Image(MockData.profileImageName)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 82, height: 82)
-                    .clipShape(Circle())
-                    .overlay {
-                        Circle()
-                            .stroke(.white.opacity(0.35), lineWidth: 1)
-                    }
+                PhotosPicker(selection: $selectedProfilePhoto, matching: .images) {
+                    profilePhoto
+                        .overlay(alignment: .bottomTrailing) {
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(6)
+                                .background(.ultraThinMaterial, in: Circle())
+                                .overlay(Circle().stroke(.white.opacity(0.35), lineWidth: 1))
+                                .offset(x: 2, y: 2)
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Change profile photo")
             }
 
             HStack {
@@ -102,27 +127,39 @@ struct ProfileView: View {
         }
     }
 
+    @ViewBuilder
+    private var profilePhoto: some View {
+        if let profilePhotoData, let image = UIImage(data: profilePhotoData) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 72, height: 72)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(.white.opacity(0.35), lineWidth: 1))
+        } else {
+            Image(MockData.profileImageName)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 72, height: 72)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(.white.opacity(0.35), lineWidth: 1))
+        }
+    }
+
     private var settingsCard: some View {
         VStack(spacing: 20) {
             NavigationLink {
                 PreferencesView()
             } label: {
-                VStack(spacing: 8) {
-                    Text("CONSOLE")
-                        .font(.subheadline.weight(.bold))
-                        .tracking(2)
-                        .foregroundStyle(.cyan)
-
-                    Text("SET YOUR PREFERENCES")
-                        .font(.caption.weight(.bold))
-                        .tracking(1)
-                        .foregroundStyle(.white)
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
+                profileActionLabel(
+                    title: "CONSOLE",
+                    subtitle: "SET YOUR PREFERENCES",
+                    tint: .cyan
+                )
             }
-            .controlSize(.large)
-            .glassButtonStyle()
+            .buttonStyle(.plain)
+
+
 
             Divider()
                 .overlay(.white.opacity(0.35))
@@ -142,22 +179,23 @@ struct ProfileView: View {
             Button(role: .destructive) {
                 showDeleteConfirmation = true
             } label: {
-                Text("DELETE ACCOUNT")
-                    .font(.caption.weight(.bold))
-                    .tracking(2)
+                profileActionLabel(
+                    title: "DELETE ACCOUNT",
+                    tint: .red,
+                    height: 46
+                )
             }
-            .tint(.pink)
-            .controlSize(.large)
-            .glassButtonStyle()
+            .buttonStyle(.plain)
+            .frame(width: 220)
         }
         .padding(20)
         .frame(maxWidth: .infinity)
         .background {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 38, style: .continuous)
                 .fill(.ultraThinMaterial)
         }
         .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 38, style: .continuous)
                 .stroke(.white.opacity(0.15), lineWidth: 1)
         }
     }
@@ -177,7 +215,7 @@ struct ProfileView: View {
                 }
                 .foregroundStyle(.white)
 
-            centeredGlassButton("CHANGE USERNAME") {
+            centeredProfileButton("CHANGE USERNAME", tint: .pink) {
                 let trimmedName = username.trimmingCharacters(in: .whitespacesAndNewlines)
 
                 guard !trimmedName.isEmpty else {
@@ -197,13 +235,13 @@ struct ProfileView: View {
 
             Text(MockData.email)
                 .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.75))
+                .foregroundStyle(.white.opacity(0.55))
                 .padding(.horizontal, 14)
                 .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading)
-                .background(.black.opacity(0.65), in: Capsule())
+                .background(.black.opacity(0.25), in: Capsule())
                 .overlay {
                     Capsule()
-                        .stroke(.white.opacity(0.35), lineWidth: 1)
+                        .stroke(.red.opacity(0.15), lineWidth: 1)
                 }
         }
     }
@@ -221,7 +259,7 @@ struct ProfileView: View {
             SecureField("New Password Repeat", text: $repeatedPassword)
                 .profilePasswordFieldStyle()
 
-            centeredGlassButton("CHANGE PASSWORD") {
+            centeredProfileButton("CHANGE PASSWORD", tint: .red) {
                 guard !currentPassword.isEmpty else {
                     activeAlert = .emptyCurrentPassword
                     return
@@ -257,22 +295,64 @@ struct ProfileView: View {
             .foregroundStyle(.pink)
     }
 
-    private func centeredGlassButton(
+    private func centeredProfileButton(
         _ title: String,
+        tint: Color,
         action: @escaping () -> Void
     ) -> some View {
         HStack {
             Spacer()
 
             Button(action: action) {
-                Text(title)
-                    .frame(minWidth: 180)
+                profileActionLabel(title: title, tint: tint, height: 36)
             }
-            .controlSize(.large)
-            .glassButtonStyle()
+            .buttonStyle(.plain)
+            .frame(width: 190)
 
             Spacer()
         }
+    }
+
+    private func profileActionLabel(
+        title: String,
+        subtitle: String? = nil,
+        tint: Color,
+        height: CGFloat = 66
+    ) -> some View {
+        VStack(spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.bold))
+                .tracking(1)
+                .foregroundStyle(tint)
+                .multilineTextAlignment(.center)
+
+            if let subtitle {
+                Text(subtitle)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.58))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: height)
+        .padding(.horizontal, 8)
+        .background {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [tint.opacity(0.18), .white.opacity(0.045)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        }
+
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(tint.opacity(0.25), lineWidth: 1)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
 
