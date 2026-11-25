@@ -3,6 +3,7 @@ import SwiftUI
 struct PreferencesView: View {
     @State private var preferences = RemixStore.shared.preferences
     @State private var saveError: String?
+    @State private var searchedIngredient = ""
 
     var body: some View {
         ScrollView {
@@ -155,6 +156,7 @@ struct PreferencesView: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 4)
+                .searchable(text: $searchedIngredient, prompt: "Enter Ingredients name")
             }
         }
     }
