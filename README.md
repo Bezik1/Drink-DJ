@@ -5,7 +5,7 @@ Application for drink creation and drink version control system. It allows user 
 Project runs on devices with IOS 27 systems (Preferably IPhone 18 Pro).
 
 ## Specification
-Specification for this project is located inside `./specs` folder.
+Specification for this project is located inside `./spec` folder.
 
 ## Views
 
