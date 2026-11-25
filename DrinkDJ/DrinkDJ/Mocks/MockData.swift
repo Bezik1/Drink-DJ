@@ -33,6 +33,7 @@ struct AlbumItem: Identifiable {
     let title: String
     let artwork: AlbumArtwork
     var drinkIDs: [String] = []
+    var photoData: Data? = nil
     var drinkCount: Int {
         drinkIDs.count
     }
@@ -200,13 +201,6 @@ enum MockData {
             drinkIDs: []
         )
     ]
-    
-    static let albumDrinks: [AlbumDrink] = [
-        AlbumDrink(id: "mojito", name: "Mojito", imageName: "drink_mojito"),
-        AlbumDrink(id: "blue-lagoon", name: "Blue Lagoon", imageName: "drink_blue_lagoon"),
-        AlbumDrink(id: "martini", name: "Martini", imageName: "drink_martini")
-    ]
-
 
     static let libraryDrinks: [LibraryDrink] = [
         LibraryDrink(

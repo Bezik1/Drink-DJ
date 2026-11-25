@@ -7,7 +7,11 @@ private enum MixerSheet: String, Identifiable {
 }
 
 struct MixerView: View {
+    @Environment(\.dismiss) private var dismiss
+    
+    let showsBackButton: Bool
     let mix: Mix
+    
     @State private var store = RemixStore.shared
     @State private var original: RemixRecipe
     @State private var recipe: RemixRecipe
@@ -20,8 +24,10 @@ struct MixerView: View {
     @State private var lastSavedVersion: RemixVersion?
     @State private var storageError: String?
 
-    @MainActor init(mix: Mix) {
+    @MainActor init(mix: Mix, showsBackButton: Bool = false) {
         self.mix = mix
+        self.showsBackButton = showsBackButton
+        
         let baseline = RemixRecipe.startingRecipe(for: mix)
         let copy = RemixStore.shared.loadDraft(baseline: baseline)
         _original = State(initialValue: copy.original)
@@ -40,6 +46,10 @@ struct MixerView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
+                if showsBackButton {
+                    backButton
+                }
+                
                 RemixIntroduction(source: original.source, comparing: $comparing)
                 RemixSessionControls(
                     match: recipe.ingredients.isEmpty ? nil : RemixMatch.estimate(
@@ -187,6 +197,32 @@ struct MixerView: View {
         }
         .tint(.cyan).preferredColorScheme(.dark)
     }
+    
+    private var backButton: some View {
+        HStack {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 46, height: 46)
+                    .background {
+                        if #available(iOS 26, *) {
+                            Circle().fill(.clear)
+                                .glassEffect(.regular, in: .circle)
+                        } else {
+                            Circle().fill(.ultraThinMaterial)
+                        }
+                    }
+                    .overlay(Circle().stroke(.white.opacity(0.16), lineWidth: 1))
+            }
+            .accessibilityLabel("Back to Album")
+
+            Spacer()
+        }
+        }
+
 
     private func remember() {
         guard history.last != workingCopy else { return }
