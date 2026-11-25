@@ -1,0 +1,330 @@
+{
+  "uml": {
+    "file": "/Users/mateuszadamowicz/Library/Mobile Documents/com~apple~CloudDocs/College/Semester 5/Mobile Applications for IOS/Labs/repository/spec/conceptual/artifacts/uml_class_diagram.json"
+  },
+  "erd": {
+    "file": "spec/conceptual/artifacts/erd.json",
+    "sha256": "b8712958eea07a74a70f511aeff59dba6fb937fd422504c0fd21a28cc2e512bc"
+  },
+  "constraints": [
+    {
+      "id": "C01",
+      "kind": "uniqueness",
+      "classes": [
+        "user"
+      ],
+      "text": "Email of a User is unique among all Users.",
+      "from": [
+        "R02"
+      ]
+    },
+    {
+      "id": "C02",
+      "kind": "rule",
+      "classes": [
+        "user",
+        "drink_version",
+        "review",
+        "album"
+      ],
+      "text": "profile_image of a User, message of a Drink Version, notes of a Review, and icon and photo of an Album can be empty.",
+      "from": [
+        "R03",
+        "R13",
+        "R33",
+        "R40"
+      ]
+    },
+    {
+      "id": "C03",
+      "kind": "derivation",
+      "classes": [
+        "drink"
+      ],
+      "text": "Popularity of a Drink is calculated from the number of Reviews of all its Drink Versions and the number of Albums, that include the Drink.",
+      "from": [
+        "R35"
+      ]
+    },
+    {
+      "id": "C04",
+      "kind": "derivation",
+      "classes": [
+        "drink",
+        "drink_version",
+        "review"
+      ],
+      "text": "average_rating of a Drink is the average of number_of_stars of the Reviews of all its Drink Versions.",
+      "from": [
+        "R34"
+      ]
+    },
+    {
+      "id": "C05",
+      "kind": "rule",
+      "classes": [
+        "drink",
+        "drink_version"
+      ],
+      "text": "Version numbers of the Drink Versions of a Drink are consecutive numbers starting from 1. add_version() gives the new Drink Version the highest version number of its Drink plus one.",
+      "from": [
+        "R10"
+      ]
+    },
+    {
+      "id": "C06",
+      "kind": "rule",
+      "classes": [
+        "drink_version"
+      ],
+      "text": "A Drink Version is based on a Drink Version of the same Drink with a lower version_number. Only version 1 is based on no Drink Version.",
+      "from": [
+        "R11"
+      ]
+    },
+    {
+      "id": "C07",
+      "kind": "rule",
+      "classes": [
+        "drink_version"
+      ],
+      "text": "Each Drink Version belongs to a branch of its Drink. A new Drink Version continues a branch only from the Drink Version of that branch with the highest version_number.",
+      "from": [
+        "R12"
+      ]
+    },
+    {
+      "id": "C08",
+      "kind": "rule",
+      "classes": [
+        "drink",
+        "drink_version"
+      ],
+      "text": "base_spirit of a Drink is empty exactly when the Drink has no alcohol, that is, when total_alcohol_percentage of its latest Drink Version is 0.",
+      "from": [
+        "R14"
+      ]
+    },
+    {
+      "id": "C09",
+      "kind": "rule",
+      "classes": [
+        "drink",
+        "drink_version",
+        "user"
+      ],
+      "text": "add_version() can be called by any User, also for a Drink authored by someone else. The new Drink Version is authored by the calling User, and the Drink Version, on which it is based, is not changed.",
+      "from": [
+        "R15",
+        "R16"
+      ]
+    },
+    {
+      "id": "C10",
+      "kind": "domain",
+      "classes": [
+        "ingredient"
+      ],
+      "text": "alcohol_percentage of an Ingredient is a number from 0 to 100.",
+      "from": [
+        "R18"
+      ]
+    },
+    {
+      "id": "C11",
+      "kind": "derivation",
+      "classes": [
+        "drink_version",
+        "contains"
+      ],
+      "text": "total_volume of a Drink Version is the sum of the amounts of its Contains entries, converted to one unit.",
+      "from": [
+        "R21"
+      ]
+    },
+    {
+      "id": "C12",
+      "kind": "derivation",
+      "classes": [
+        "drink_version",
+        "contains",
+        "ingredient"
+      ],
+      "text": "total_alcohol_percentage of a Drink Version is the sum of amount times alcohol_percentage of its Ingredients, divided by total_volume.",
+      "from": [
+        "R22"
+      ]
+    },
+    {
+      "id": "C13",
+      "kind": "rule",
+      "classes": [
+        "drink_version"
+      ],
+      "text": "A Drink Version is a mocktail exactly when its total_alcohol_percentage is 0. Every other Drink Version is alcoholic.",
+      "from": [
+        "R23"
+      ]
+    },
+    {
+      "id": "C14",
+      "kind": "derivation",
+      "classes": [
+        "drink_version",
+        "contains",
+        "ingredient"
+      ],
+      "text": "flavour_distribution of a Drink Version is calculated from the amounts and the Ingredients it contains.",
+      "from": [
+        "R24"
+      ]
+    },
+    {
+      "id": "C15",
+      "kind": "derivation",
+      "classes": [
+        "prefers",
+        "drink_version",
+        "flavour_preferences"
+      ],
+      "text": "estimated_match of a Drink Version is a percentage from 0 to 100, calculated from its Ingredients and the Flavour Preferences it prefers, when it is saved.",
+      "from": [
+        "R25"
+      ]
+    },
+    {
+      "id": "C16",
+      "kind": "domain",
+      "classes": [
+        "flavour_preferences"
+      ],
+      "text": "sweetness, sourness, spiciness, bitterness, fruitiness, herbalness, smokiness, fizziness and intensity are whole numbers from 0 to 20.",
+      "from": [
+        "R26"
+      ]
+    },
+    {
+      "id": "C17",
+      "kind": "rule",
+      "classes": [
+        "flavour_preferences",
+        "user",
+        "drink_version"
+      ],
+      "text": "Each Flavour Preferences belongs either to exactly one User or to exactly one Drink Version, never to both.",
+      "from": [
+        "R27",
+        "R28",
+        "R29"
+      ]
+    },
+    {
+      "id": "C18",
+      "kind": "domain",
+      "classes": [
+        "review"
+      ],
+      "text": "number_of_stars of a Review is a whole number from 1 to 5.",
+      "from": [
+        "R31"
+      ]
+    },
+    {
+      "id": "C19",
+      "kind": "rule",
+      "classes": [
+        "album",
+        "user"
+      ],
+      "text": "Each User has exactly one Album of the kinds favourites, to_check_out and your_drinks, and these Albums cannot be deleted.",
+      "from": [
+        "R39"
+      ]
+    },
+    {
+      "id": "C20",
+      "kind": "rule",
+      "classes": [
+        "album"
+      ],
+      "text": "An Album without an icon uses the default icon.",
+      "from": [
+        "R40"
+      ]
+    },
+    {
+      "id": "C21",
+      "kind": "derivation",
+      "classes": [
+        "album",
+        "includes"
+      ],
+      "text": "number_of_drinks of an Album is the number of its Includes entries.",
+      "from": [
+        "R43"
+      ]
+    },
+    {
+      "id": "C22",
+      "kind": "rule",
+      "classes": [
+        "album",
+        "drink",
+        "drink_version",
+        "user"
+      ],
+      "text": "The Album of the kind your_drinks includes exactly the Drinks, which have a Drink Version authored by the owner of the Album.",
+      "from": [
+        "R44"
+      ]
+    },
+    {
+      "id": "C23",
+      "kind": "rule",
+      "classes": [
+        "album",
+        "user"
+      ],
+      "text": "share() and withdraw() can be called only by the owner of the Album. share() sets public_status to true and withdraw() sets it to false.",
+      "from": [
+        "R45"
+      ]
+    },
+    {
+      "id": "C24",
+      "kind": "rule",
+      "classes": [
+        "album",
+        "user"
+      ],
+      "text": "A private Album is visible only to its owner. A public Album is visible to all Users and Guests.",
+      "from": [
+        "R46"
+      ]
+    },
+    {
+      "id": "C25",
+      "kind": "rule",
+      "classes": [
+        "user",
+        "passkey",
+        "flavour_preferences",
+        "review",
+        "album"
+      ],
+      "text": "Deleting a User deletes its Passkeys, its Flavour Preferences, its Reviews, its liked Ingredients and its Albums.",
+      "from": [
+        "R47"
+      ]
+    },
+    {
+      "id": "C26",
+      "kind": "domain",
+      "classes": [
+        "contains"
+      ],
+      "text": "amount of a Contains entry is greater than 0.",
+      "assumed": "An ingredient of a drink must have a positive amount, although the matrix does not say it."
+    }
+  ]
+}

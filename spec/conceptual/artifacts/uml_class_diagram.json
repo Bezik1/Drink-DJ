@@ -1,0 +1,881 @@
+{
+  "erd": {
+    "file": "spec/conceptual/artifacts/erd.json",
+    "sha256": "b8712958eea07a74a70f511aeff59dba6fb937fd422504c0fd21a28cc2e512bc"
+  },
+  "matrix": {
+    "file": "spec/requirements/documents/requirements_matrix.pdf",
+    "sha256": "8fdb396bed4d6541b86cf6bcf996b2d3df5c89869a1ad4929a0098b2a4ec67ca"
+  },
+  "classes": {
+    "drink": {
+      "name": "Drink",
+      "entity": "drink",
+      "cell": [
+        0,
+        0
+      ],
+      "attributes": [
+        {
+          "name": "identifier",
+          "type": "Integer",
+          "erd": "Identifier",
+          "kind": "key",
+          "from": [
+            "R07"
+          ]
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "erd": "Name",
+          "from": [
+            "R07"
+          ]
+        },
+        {
+          "name": "description",
+          "type": "String",
+          "erd": "Description",
+          "from": [
+            "R07"
+          ]
+        },
+        {
+          "name": "photo",
+          "type": "String",
+          "erd": "Photo",
+          "from": [
+            "R07"
+          ]
+        },
+        {
+          "name": "date_of_creation",
+          "type": "Date",
+          "erd": "Date of creation",
+          "from": [
+            "R07"
+          ]
+        },
+        {
+          "name": "base_spirit",
+          "type": "Base Spirit",
+          "erd": "Base spirit",
+          "from": [
+            "R07",
+            "R14"
+          ]
+        },
+        {
+          "name": "popularity",
+          "type": "Decimal",
+          "erd": "Popularity",
+          "kind": "derived",
+          "from": [
+            "R35"
+          ]
+        },
+        {
+          "name": "average_rating",
+          "type": "Decimal",
+          "erd": "Average rating",
+          "kind": "derived",
+          "from": [
+            "R34"
+          ]
+        }
+      ],
+      "from": [
+        "R07"
+      ],
+      "operations": [
+        {
+          "name": "add_version",
+          "assumed": "R10, R16: a User can make a new Drink Version, based on an earlier one, which gets the highest version number of the Drink plus one."
+        }
+      ]
+    },
+    "drink_version": {
+      "name": "Drink Version",
+      "entity": "drink_version",
+      "cell": [
+        0,
+        1
+      ],
+      "attributes": [
+        {
+          "name": "version_number",
+          "type": "Integer",
+          "erd": "Version number",
+          "kind": "partial",
+          "from": [
+            "R08",
+            "R10"
+          ]
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "erd": "Name",
+          "from": [
+            "R09"
+          ]
+        },
+        {
+          "name": "branch",
+          "type": "String",
+          "erd": "Branch",
+          "from": [
+            "R09",
+            "R12"
+          ]
+        },
+        {
+          "name": "message",
+          "type": "String",
+          "erd": "Message",
+          "from": [
+            "R09",
+            "R13"
+          ]
+        },
+        {
+          "name": "date_of_creation",
+          "type": "Date",
+          "erd": "Date of creation",
+          "from": [
+            "R09"
+          ]
+        },
+        {
+          "name": "total_volume",
+          "type": "Decimal",
+          "erd": "Total volume",
+          "kind": "derived",
+          "from": [
+            "R09",
+            "R21"
+          ]
+        },
+        {
+          "name": "total_alcohol_percentage",
+          "type": "Decimal",
+          "erd": "Total alcohol percentage",
+          "kind": "derived",
+          "from": [
+            "R09",
+            "R22"
+          ]
+        },
+        {
+          "name": "flavour_distribution",
+          "type": "String",
+          "erd": "Flavour distribution",
+          "kind": "derived",
+          "from": [
+            "R24"
+          ]
+        }
+      ],
+      "from": [
+        "R08",
+        "R09"
+      ]
+    },
+    "user": {
+      "name": "User",
+      "entity": "user",
+      "cell": [
+        3,
+        1
+      ],
+      "attributes": [
+        {
+          "name": "username",
+          "type": "String",
+          "erd": "Username",
+          "kind": "key",
+          "from": [
+            "R01",
+            "R02"
+          ]
+        },
+        {
+          "name": "email",
+          "type": "String",
+          "erd": "Email",
+          "from": [
+            "R01",
+            "R02"
+          ]
+        },
+        {
+          "name": "password",
+          "type": "String",
+          "erd": "Password",
+          "from": [
+            "R01"
+          ]
+        },
+        {
+          "name": "profile_image",
+          "type": "String",
+          "erd": "Profile image",
+          "from": [
+            "R01",
+            "R03"
+          ]
+        },
+        {
+          "name": "date_of_account_creation",
+          "type": "Date",
+          "erd": "Date of account creation",
+          "from": [
+            "R01"
+          ]
+        }
+      ],
+      "from": [
+        "R01"
+      ]
+    },
+    "passkey": {
+      "name": "Passkey",
+      "entity": "passkey",
+      "cell": [
+        4,
+        1
+      ],
+      "attributes": [
+        {
+          "name": "credential_identifier",
+          "type": "String",
+          "erd": "Credential identifier",
+          "kind": "key",
+          "from": [
+            "R04",
+            "R05"
+          ]
+        },
+        {
+          "name": "public_key",
+          "type": "String",
+          "erd": "Public key",
+          "from": [
+            "R04"
+          ]
+        },
+        {
+          "name": "date_of_creation",
+          "type": "Date",
+          "erd": "Date of creation",
+          "from": [
+            "R04"
+          ]
+        }
+      ],
+      "from": [
+        "R04"
+      ]
+    },
+    "album": {
+      "name": "Album",
+      "entity": "album",
+      "cell": [
+        3,
+        0
+      ],
+      "attributes": [
+        {
+          "name": "identifier",
+          "type": "Integer",
+          "erd": "Identifier",
+          "kind": "key",
+          "from": [
+            "R37"
+          ]
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "erd": "Name",
+          "from": [
+            "R37"
+          ]
+        },
+        {
+          "name": "icon",
+          "type": "String",
+          "erd": "Icon",
+          "from": [
+            "R37",
+            "R40"
+          ]
+        },
+        {
+          "name": "photo",
+          "type": "String",
+          "erd": "Photo",
+          "from": [
+            "R37",
+            "R40"
+          ]
+        },
+        {
+          "name": "kind",
+          "type": "Kind",
+          "erd": "Kind",
+          "from": [
+            "R37",
+            "R39"
+          ]
+        },
+        {
+          "name": "public_status",
+          "type": "Boolean",
+          "erd": "Public status",
+          "from": [
+            "R37",
+            "R45"
+          ]
+        },
+        {
+          "name": "date_of_creation",
+          "type": "Date",
+          "erd": "Date of creation",
+          "from": [
+            "R37"
+          ]
+        },
+        {
+          "name": "number_of_drinks",
+          "type": "Integer",
+          "erd": "Number of Drinks",
+          "kind": "derived",
+          "from": [
+            "R37",
+            "R43"
+          ]
+        }
+      ],
+      "from": [
+        "R37"
+      ],
+      "operations": [
+        {
+          "name": "share",
+          "assumed": "R45: only the owner of an Album can share it, which sets its public status to true."
+        },
+        {
+          "name": "withdraw",
+          "assumed": "R45: only the owner of an Album can make it private, which sets its public status to false."
+        }
+      ]
+    },
+    "ingredient": {
+      "name": "Ingredient",
+      "entity": "ingredient",
+      "cell": [
+        0,
+        2.7
+      ],
+      "attributes": [
+        {
+          "name": "name",
+          "type": "String",
+          "erd": "Name",
+          "kind": "key",
+          "from": [
+            "R17",
+            "R18"
+          ]
+        },
+        {
+          "name": "category",
+          "type": "Category",
+          "erd": "Category",
+          "from": [
+            "R17"
+          ]
+        },
+        {
+          "name": "alcohol_percentage",
+          "type": "Decimal",
+          "erd": "Alcohol percentage",
+          "from": [
+            "R17",
+            "R18"
+          ]
+        }
+      ],
+      "from": [
+        "R17"
+      ]
+    },
+    "flavour_preferences": {
+      "name": "Flavour Preferences",
+      "entity": "flavour_preferences",
+      "cell": [
+        3,
+        2.2
+      ],
+      "attributes": [
+        {
+          "name": "identifier",
+          "type": "Integer",
+          "erd": "Identifier",
+          "kind": "key",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "sweetness",
+          "type": "Integer",
+          "erd": "Sweetness",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "sourness",
+          "type": "Integer",
+          "erd": "Sourness",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "spiciness",
+          "type": "Integer",
+          "erd": "Spiciness",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "bitterness",
+          "type": "Integer",
+          "erd": "Bitterness",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "fruitiness",
+          "type": "Integer",
+          "erd": "Fruitiness",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "herbalness",
+          "type": "Integer",
+          "erd": "Herbalness",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "smokiness",
+          "type": "Integer",
+          "erd": "Smokiness",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "fizziness",
+          "type": "Integer",
+          "erd": "Fizziness",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "intensity",
+          "type": "Integer",
+          "erd": "Intensity",
+          "from": [
+            "R26"
+          ]
+        }
+      ],
+      "from": [
+        "R26"
+      ]
+    },
+    "review": {
+      "name": "Review",
+      "entity": "review",
+      "cell": [
+        1.5,
+        0.5
+      ],
+      "attributes": [
+        {
+          "name": "identifier",
+          "type": "Integer",
+          "erd": "Identifier",
+          "kind": "key",
+          "from": [
+            "R30"
+          ]
+        },
+        {
+          "name": "number_of_stars",
+          "type": "Integer",
+          "erd": "Number of stars",
+          "from": [
+            "R30",
+            "R31"
+          ]
+        },
+        {
+          "name": "notes",
+          "type": "String",
+          "erd": "Notes",
+          "from": [
+            "R30",
+            "R33"
+          ]
+        },
+        {
+          "name": "date_of_creation",
+          "type": "Date",
+          "erd": "Date of creation",
+          "from": [
+            "R30"
+          ]
+        },
+        {
+          "name": "sweetness_perception",
+          "type": "Perception",
+          "erd": "Sweetness perception",
+          "from": [
+            "R30",
+            "R31"
+          ]
+        },
+        {
+          "name": "sourness_perception",
+          "type": "Perception",
+          "erd": "Sourness perception",
+          "from": [
+            "R30",
+            "R31"
+          ]
+        },
+        {
+          "name": "bitterness_perception",
+          "type": "Perception",
+          "erd": "Bitterness perception",
+          "from": [
+            "R30",
+            "R31"
+          ]
+        },
+        {
+          "name": "strength_perception",
+          "type": "Perception",
+          "erd": "Strength perception",
+          "from": [
+            "R30",
+            "R31"
+          ]
+        }
+      ],
+      "from": [
+        "R30"
+      ]
+    },
+    "base_spirit": {
+      "name": "Base Spirit",
+      "stereotype": "enumeration",
+      "values": [
+        "vodka",
+        "gin",
+        "rum",
+        "tequila",
+        "whisky"
+      ],
+      "from": [
+        "R07",
+        "R14"
+      ]
+    },
+    "kind": {
+      "name": "Kind",
+      "stereotype": "enumeration",
+      "values": [
+        "favourites",
+        "to_check_out",
+        "your_drinks",
+        "custom"
+      ],
+      "from": [
+        "R37",
+        "R39"
+      ]
+    },
+    "category": {
+      "name": "Category",
+      "stereotype": "enumeration",
+      "values": [
+        "alcohol",
+        "addition"
+      ],
+      "from": [
+        "R17"
+      ]
+    },
+    "contains": {
+      "name": "Contains",
+      "relationship": "contains:drink_version/ingredient",
+      "cell": [
+        0.5,
+        2
+      ],
+      "attributes": [
+        {
+          "name": "amount",
+          "type": "Decimal",
+          "erd": "Amount",
+          "from": [
+            "R19"
+          ]
+        },
+        {
+          "name": "unit",
+          "type": "String",
+          "erd": "Unit",
+          "from": [
+            "R19"
+          ]
+        }
+      ],
+      "from": [
+        "R19",
+        "R20"
+      ]
+    },
+    "prefers": {
+      "name": "Prefers",
+      "relationship": "prefers:drink_version/flavour_preferences",
+      "cell": [
+        1.5,
+        2
+      ],
+      "attributes": [
+        {
+          "name": "estimated_match",
+          "type": "Integer",
+          "erd": "Estimated match",
+          "kind": "derived",
+          "from": [
+            "R25"
+          ]
+        }
+      ],
+      "from": [
+        "R28",
+        "R29"
+      ]
+    },
+    "includes": {
+      "name": "Includes",
+      "relationship": "includes:album/drink",
+      "cell": [
+        1.5,
+        0
+      ],
+      "attributes": [
+        {
+          "name": "date_of_adding",
+          "type": "Date",
+          "erd": "Date of adding",
+          "from": [
+            "R41"
+          ]
+        }
+      ],
+      "from": [
+        "R41",
+        "R42",
+        "R44"
+      ]
+    },
+    "perception": {
+      "name": "Perception",
+      "stereotype": "enumeration",
+      "values": [
+        "not_rated",
+        "too_little",
+        "just_right",
+        "too_much"
+      ],
+      "assumed": "R31 gives the same four values for every perception of a Review, so the four perceptions share one enumeration."
+    }
+  },
+  "associations": [
+    {
+      "name": "has version",
+      "erd": "has version:drink/drink_version",
+      "kind": "composition",
+      "ends": {
+        "drink": "1",
+        "drink_version": "1..*"
+      },
+      "whole": "drink",
+      "from": [
+        "R08",
+        "R10"
+      ]
+    },
+    {
+      "name": "authors",
+      "erd": "authors:drink_version/user",
+      "kind": "association",
+      "ends": {
+        "user": "0..1",
+        "drink_version": "0..*"
+      },
+      "from": [
+        "R15",
+        "R16"
+      ]
+    },
+    {
+      "name": "is about",
+      "erd": "is about:drink_version/review",
+      "kind": "association",
+      "ends": {
+        "drink_version": "1",
+        "review": "0..*"
+      },
+      "from": [
+        "R32"
+      ]
+    },
+    {
+      "name": "writes",
+      "erd": "writes:review/user",
+      "kind": "association",
+      "ends": {
+        "user": "1",
+        "review": "0..*"
+      },
+      "from": [
+        "R30",
+        "R32"
+      ]
+    },
+    {
+      "name": "contains",
+      "erd": "contains:drink_version/ingredient",
+      "kind": "association",
+      "ends": {
+        "drink_version": "0..*",
+        "ingredient": "1..*"
+      },
+      "class": "contains",
+      "from": [
+        "R19",
+        "R20"
+      ]
+    },
+    {
+      "name": "prefers",
+      "erd": "prefers:drink_version/flavour_preferences",
+      "kind": "association",
+      "ends": {
+        "drink_version": "0..1",
+        "flavour_preferences": "1"
+      },
+      "class": "prefers",
+      "from": [
+        "R28",
+        "R29"
+      ]
+    },
+    {
+      "name": "prefers",
+      "erd": "prefers:flavour_preferences/user",
+      "kind": "association",
+      "ends": {
+        "user": "0..1",
+        "flavour_preferences": "1"
+      },
+      "from": [
+        "R27",
+        "R29"
+      ]
+    },
+    {
+      "name": "likes",
+      "erd": "likes:ingredient/user",
+      "kind": "association",
+      "ends": {
+        "user": "0..*",
+        "ingredient": "0..*"
+      },
+      "from": [
+        "R36"
+      ]
+    },
+    {
+      "name": "has",
+      "erd": "has:passkey/user",
+      "kind": "association",
+      "ends": {
+        "user": "1",
+        "passkey": "0..*"
+      },
+      "from": [
+        "R04",
+        "R05"
+      ]
+    },
+    {
+      "name": "owns",
+      "erd": "owns:album/user",
+      "kind": "association",
+      "ends": {
+        "user": "1",
+        "album": "0..*"
+      },
+      "from": [
+        "R38",
+        "R39"
+      ]
+    },
+    {
+      "name": "includes",
+      "erd": "includes:album/drink",
+      "kind": "association",
+      "ends": {
+        "album": "0..*",
+        "drink": "0..*"
+      },
+      "class": "includes",
+      "from": [
+        "R41",
+        "R42",
+        "R44"
+      ]
+    },
+    {
+      "name": "is based on",
+      "erd": "is based on:drink_version/drink_version:base",
+      "kind": "association",
+      "ends": {
+        "drink_version": "0..*",
+        "drink_version:base": "0..1"
+      },
+      "from": [
+        "R11"
+      ]
+    }
+  ]
+}

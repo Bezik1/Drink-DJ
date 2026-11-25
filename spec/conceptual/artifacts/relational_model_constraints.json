@@ -1,0 +1,651 @@
+{
+  "relational": {
+    "file": "spec/conceptual/artifacts/relational_model_diagram.json"
+  },
+  "uml_constraints": {
+    "file": "spec/conceptual/artifacts/uml_class_diagram_constraints.json",
+    "sha256": "86b320a5564ae61166140ae3c5894893615951930de9734de1cf0f3a50b9e80c"
+  },
+  "covered": {},
+  "constraints": [
+    {
+      "id": "C01",
+      "kind": "domain",
+      "tables": [
+        "Drink"
+      ],
+      "columns": [
+        "Drink.base_spirit"
+      ],
+      "text": "Base Spirit value can be equal only to “vodka”, “gin”, “rum”, “tequila”, “whisky” or NULL.",
+      "from": [
+        "R07",
+        "R14"
+      ]
+    },
+    {
+      "id": "C02",
+      "kind": "domain",
+      "tables": [
+        "Album"
+      ],
+      "columns": [
+        "Album.kind"
+      ],
+      "text": "Kind value can be equal only to “favourites”, “to_check_out”, “your_drinks” or “custom”.",
+      "from": [
+        "R37",
+        "R39"
+      ]
+    },
+    {
+      "id": "C03",
+      "kind": "domain",
+      "tables": [
+        "Ingredient"
+      ],
+      "columns": [
+        "Ingredient.category"
+      ],
+      "text": "Category value can be equal only to “alcohol” or “addition”.",
+      "from": [
+        "R17"
+      ]
+    },
+    {
+      "id": "C04",
+      "kind": "domain",
+      "tables": [
+        "Review"
+      ],
+      "columns": [
+        "Review.sweetness_perception",
+        "Review.sourness_perception",
+        "Review.bitterness_perception",
+        "Review.strength_perception"
+      ],
+      "text": "Sweetness Perception value, Sourness Perception value, Bitterness Perception value and Strength Perception value can be equal only to “not_rated”, “too_little”, “just_right” or “too_much”.",
+      "assumed": "Values of the enumeration Perception of the UML"
+    },
+    {
+      "id": "C05",
+      "kind": "domain",
+      "tables": [
+        "Ingredient"
+      ],
+      "text": "alcohol_percentage of an Ingredient is a number from 0 to 100.",
+      "from": [
+        "R18"
+      ],
+      "uml": [
+        "C10"
+      ]
+    },
+    {
+      "id": "C06",
+      "kind": "domain",
+      "tables": [
+        "Flavour_Preferences"
+      ],
+      "text": "sweetness, sourness, spiciness, bitterness, fruitiness, herbalness, smokiness, fizziness and intensity are whole numbers from 0 to 20.",
+      "from": [
+        "R26"
+      ],
+      "uml": [
+        "C16"
+      ]
+    },
+    {
+      "id": "C07",
+      "kind": "domain",
+      "tables": [
+        "Review"
+      ],
+      "text": "number_of_stars of a Review is a whole number from 1 to 5.",
+      "from": [
+        "R31"
+      ],
+      "uml": [
+        "C18"
+      ]
+    },
+    {
+      "id": "C08",
+      "kind": "domain",
+      "tables": [
+        "Version_Ingredient"
+      ],
+      "text": "amount of a Version_Ingredient row is greater than 0.",
+      "assumed": "An ingredient of a drink must have a positive amount, although the matrix does not say it.",
+      "uml": [
+        "C26"
+      ]
+    },
+    {
+      "id": "C09",
+      "kind": "uniqueness",
+      "tables": [
+        "User"
+      ],
+      "text": "Email of a User is unique among all Users.",
+      "from": [
+        "R02"
+      ],
+      "uml": [
+        "C01"
+      ]
+    },
+    {
+      "id": "C10",
+      "kind": "uniqueness",
+      "tables": [
+        "Drink_Version"
+      ],
+      "columns": [
+        "Drink_Version.drink_identifier",
+        "Drink_Version.version_number"
+      ],
+      "text": "The combination of Drink Identifier and Version Number of Drink Version is unique. It is the natural key of Drink Version, kept next to its surrogate key drink_version_id.",
+      "assumed": "UNIQUE set of the model"
+    },
+    {
+      "id": "C11",
+      "kind": "uniqueness",
+      "tables": [
+        "Drink_Version"
+      ],
+      "columns": [
+        "Drink_Version.flavour_preferences_identifier"
+      ],
+      "text": "Flavour Preferences Identifier of Drink Version is unique.",
+      "from": [
+        "R28",
+        "R29"
+      ]
+    },
+    {
+      "id": "C12",
+      "kind": "uniqueness",
+      "tables": [
+        "User"
+      ],
+      "columns": [
+        "User.flavour_preferences_identifier"
+      ],
+      "text": "Flavour Preferences Identifier of User is unique.",
+      "from": [
+        "R27",
+        "R29"
+      ]
+    },
+    {
+      "id": "C13",
+      "kind": "rule",
+      "tables": [
+        "User",
+        "Drink_Version",
+        "Review",
+        "Album"
+      ],
+      "text": "profile_image of a User, message of a Drink Version, notes of a Review, and icon and photo of an Album can be empty.",
+      "from": [
+        "R03",
+        "R13",
+        "R33",
+        "R40"
+      ],
+      "uml": [
+        "C02"
+      ]
+    },
+    {
+      "id": "C14",
+      "kind": "rule",
+      "tables": [
+        "Drink",
+        "Drink_Version"
+      ],
+      "text": "Version numbers of the Drink Versions of a Drink are consecutive numbers starting from 1. add_version() gives the new Drink Version the highest version number of its Drink plus one.",
+      "from": [
+        "R10"
+      ],
+      "uml": [
+        "C05"
+      ]
+    },
+    {
+      "id": "C15",
+      "kind": "rule",
+      "tables": [
+        "Drink_Version"
+      ],
+      "text": "base_drink_version_id of a Drink Version references a Drink Version of the same Drink with a lower version_number. Only version 1 is based on no Drink Version.",
+      "from": [
+        "R11"
+      ],
+      "uml": [
+        "C06"
+      ]
+    },
+    {
+      "id": "C16",
+      "kind": "rule",
+      "tables": [
+        "Drink_Version"
+      ],
+      "text": "Each Drink Version belongs to a branch of its Drink. A new Drink Version continues a branch only from the Drink Version of that branch with the highest version_number.",
+      "from": [
+        "R12"
+      ],
+      "uml": [
+        "C07"
+      ]
+    },
+    {
+      "id": "C17",
+      "kind": "rule",
+      "tables": [
+        "Drink",
+        "Drink_Version"
+      ],
+      "text": "base_spirit of a Drink is empty exactly when the Drink has no alcohol, that is, when total_alcohol_percentage of its latest Drink Version is 0.",
+      "from": [
+        "R14"
+      ],
+      "uml": [
+        "C08"
+      ]
+    },
+    {
+      "id": "C18",
+      "kind": "rule",
+      "tables": [
+        "Drink",
+        "Drink_Version",
+        "User"
+      ],
+      "text": "add_version() can be called by any User, also for a Drink authored by someone else. The new Drink Version is authored by the calling User, and the Drink Version, on which it is based, is not changed.",
+      "from": [
+        "R15",
+        "R16"
+      ],
+      "uml": [
+        "C09"
+      ]
+    },
+    {
+      "id": "C19",
+      "kind": "rule",
+      "tables": [
+        "Drink_Version"
+      ],
+      "text": "A Drink Version is a mocktail exactly when its total_alcohol_percentage is 0. Every other Drink Version is alcoholic.",
+      "from": [
+        "R23"
+      ],
+      "uml": [
+        "C13"
+      ]
+    },
+    {
+      "id": "C20",
+      "kind": "rule",
+      "tables": [
+        "Flavour_Preferences",
+        "User",
+        "Drink_Version"
+      ],
+      "text": "Each Flavour Preferences belongs either to exactly one User or to exactly one Drink Version, never to both.",
+      "from": [
+        "R27",
+        "R28",
+        "R29"
+      ],
+      "uml": [
+        "C17"
+      ]
+    },
+    {
+      "id": "C21",
+      "kind": "rule",
+      "tables": [
+        "Album",
+        "User"
+      ],
+      "text": "Each User has exactly one Album of the kinds favourites, to_check_out and your_drinks, and these Albums cannot be deleted.",
+      "from": [
+        "R39"
+      ],
+      "uml": [
+        "C19"
+      ]
+    },
+    {
+      "id": "C22",
+      "kind": "rule",
+      "tables": [
+        "Album"
+      ],
+      "text": "An Album without an icon uses the default icon.",
+      "from": [
+        "R40"
+      ],
+      "uml": [
+        "C20"
+      ]
+    },
+    {
+      "id": "C23",
+      "kind": "rule",
+      "tables": [
+        "Album",
+        "Drink",
+        "Drink_Version",
+        "User"
+      ],
+      "text": "The Album of the kind your_drinks includes exactly the Drinks, which have a Drink Version authored by the owner of the Album.",
+      "from": [
+        "R44"
+      ],
+      "uml": [
+        "C22"
+      ]
+    },
+    {
+      "id": "C24",
+      "kind": "rule",
+      "tables": [
+        "Album",
+        "User"
+      ],
+      "text": "share() and withdraw() can be called only by the owner of the Album. share() sets public_status to true and withdraw() sets it to false.",
+      "from": [
+        "R45"
+      ],
+      "uml": [
+        "C23"
+      ]
+    },
+    {
+      "id": "C25",
+      "kind": "rule",
+      "tables": [
+        "Album",
+        "User"
+      ],
+      "text": "A private Album is visible only to its owner. A public Album is visible to all Users and Guests.",
+      "from": [
+        "R46"
+      ],
+      "uml": [
+        "C24"
+      ]
+    },
+    {
+      "id": "C26",
+      "kind": "rule",
+      "tables": [
+        "User",
+        "Passkey",
+        "Flavour_Preferences",
+        "Review",
+        "Album"
+      ],
+      "text": "Deleting a User deletes its Passkeys, its Flavour Preferences, its Reviews, its liked Ingredients and its Albums.",
+      "from": [
+        "R47"
+      ],
+      "uml": [
+        "C25"
+      ]
+    },
+    {
+      "id": "C27",
+      "kind": "derivation",
+      "tables": [
+        "Drink"
+      ],
+      "columns": [
+        "Drink.popularity"
+      ],
+      "text": "Popularity of a Drink is calculated from the number of Reviews of all its Drink Versions and the number of Albums, that include the Drink. It is set by the database and cannot be changed directly.",
+      "from": [
+        "R35"
+      ],
+      "uml": [
+        "C03"
+      ]
+    },
+    {
+      "id": "C28",
+      "kind": "derivation",
+      "tables": [
+        "Drink",
+        "Drink_Version",
+        "Review"
+      ],
+      "text": "average_rating of a Drink is the average of number_of_stars of the Reviews of all its Drink Versions. It is set by the database and cannot be changed directly.",
+      "from": [
+        "R34"
+      ],
+      "uml": [
+        "C04"
+      ],
+      "columns": [
+        "Drink.average_rating"
+      ]
+    },
+    {
+      "id": "C29",
+      "kind": "derivation",
+      "tables": [
+        "Drink_Version",
+        "Version_Ingredient"
+      ],
+      "text": "total_volume of a Drink Version is the sum of the amounts of its Version_Ingredient rows, converted to one unit. It is set by the database and cannot be changed directly.",
+      "from": [
+        "R21"
+      ],
+      "uml": [
+        "C11"
+      ],
+      "columns": [
+        "Drink_Version.total_volume"
+      ]
+    },
+    {
+      "id": "C30",
+      "kind": "derivation",
+      "tables": [
+        "Drink_Version",
+        "Version_Ingredient",
+        "Ingredient"
+      ],
+      "text": "total_alcohol_percentage of a Drink Version is the sum of amount times alcohol_percentage of its Ingredients, divided by total_volume. It is set by the database and cannot be changed directly.",
+      "from": [
+        "R22"
+      ],
+      "uml": [
+        "C12"
+      ],
+      "columns": [
+        "Drink_Version.total_alcohol_percentage"
+      ]
+    },
+    {
+      "id": "C31",
+      "kind": "derivation",
+      "tables": [
+        "Drink_Version",
+        "Version_Ingredient",
+        "Ingredient"
+      ],
+      "text": "flavour_distribution of a Drink Version is calculated from the amounts and the Ingredients it contains. It is set by the database and cannot be changed directly.",
+      "from": [
+        "R24"
+      ],
+      "uml": [
+        "C14"
+      ],
+      "columns": [
+        "Drink_Version.flavour_distribution"
+      ]
+    },
+    {
+      "id": "C32",
+      "kind": "derivation",
+      "tables": [
+        "Drink_Version",
+        "Flavour_Preferences"
+      ],
+      "text": "estimated_match of a Drink Version is a percentage from 0 to 100, calculated from its Ingredients and the Flavour Preferences it prefers, when it is saved. It is set by the database and cannot be changed directly.",
+      "from": [
+        "R25"
+      ],
+      "uml": [
+        "C15"
+      ],
+      "columns": [
+        "Drink_Version.estimated_match"
+      ]
+    },
+    {
+      "id": "C33",
+      "kind": "derivation",
+      "tables": [
+        "Album",
+        "Album_Entry"
+      ],
+      "text": "number_of_drinks of an Album is the number of its Album_Entry rows. It is set by the database and cannot be changed directly.",
+      "from": [
+        "R43"
+      ],
+      "uml": [
+        "C21"
+      ],
+      "columns": [
+        "Album.number_of_drinks"
+      ]
+    },
+    {
+      "id": "C34",
+      "kind": "referential",
+      "tables": [
+        "Drink_Version",
+        "User"
+      ],
+      "text": "Deleting a User sets Author Username of Drink Version to NULL.",
+      "from": [
+        "R15",
+        "R16"
+      ]
+    },
+    {
+      "id": "C35",
+      "kind": "referential",
+      "tables": [
+        "Drink_Version",
+        "Drink_Version"
+      ],
+      "text": "Deleting a Drink Version sets Base Drink Version Id of Drink Version to NULL.",
+      "from": [
+        "R11"
+      ]
+    },
+    {
+      "id": "C36",
+      "kind": "referential",
+      "tables": [
+        "Drink_Version",
+        "Drink"
+      ],
+      "text": "Deleting a Drink deletes every row of Drink Version, that references it.",
+      "from": [
+        "R08",
+        "R10"
+      ]
+    },
+    {
+      "id": "C37",
+      "kind": "referential",
+      "tables": [
+        "Passkey",
+        "User"
+      ],
+      "text": "Deleting a User deletes every row of Passkey, that references it.",
+      "from": [
+        "R04",
+        "R05"
+      ]
+    },
+    {
+      "id": "C38",
+      "kind": "referential",
+      "tables": [
+        "Album",
+        "User"
+      ],
+      "text": "Deleting a User deletes every row of Album, that references it.",
+      "from": [
+        "R38",
+        "R39"
+      ]
+    },
+    {
+      "id": "C39",
+      "kind": "referential",
+      "tables": [
+        "Review",
+        "Drink_Version",
+        "User"
+      ],
+      "text": "Deleting a Drink Version or a User deletes every row of Review, that references it.",
+      "from": [
+        "R32",
+        "R30"
+      ]
+    },
+    {
+      "id": "C40",
+      "kind": "referential",
+      "tables": [
+        "Version_Ingredient",
+        "Drink_Version",
+        "Ingredient"
+      ],
+      "text": "Deleting a Drink Version or an Ingredient deletes every row of Version Ingredient, that references it.",
+      "from": [
+        "R19",
+        "R20"
+      ]
+    },
+    {
+      "id": "C41",
+      "kind": "referential",
+      "tables": [
+        "Liked_Ingredient",
+        "User",
+        "Ingredient"
+      ],
+      "text": "Deleting a User or an Ingredient deletes every row of Liked Ingredient, that references it.",
+      "from": [
+        "R36"
+      ]
+    },
+    {
+      "id": "C42",
+      "kind": "referential",
+      "tables": [
+        "Album_Entry",
+        "Album",
+        "Drink"
+      ],
+      "text": "Deleting an Album or a Drink deletes every row of Album Entry, that references it.",
+      "from": [
+        "R41",
+        "R42",
+        "R44"
+      ]
+    }
+  ]
+}

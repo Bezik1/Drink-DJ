@@ -1,0 +1,551 @@
+{
+  "sources": {
+    "functional": {
+      "file": "spec/requirements/documents/functional_requirements.pdf",
+      "sha256": "3378b593e954aa897fd5d97f35092a3fb5c3a2e9bc5957bfa8eaa99df67f34d2"
+    },
+    "non_functional": {
+      "file": "spec/requirements/documents/non_functional_requirements.pdf",
+      "sha256": "dfd23e70f6a5a09dd664024cc90deadd40f4ed9fd1c815bcb6b30278e6ccd87c"
+    }
+  },
+  "requirements": [
+    {
+      "id": "FR01",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall allow a guest to create an account with a unique username, a unique email and a password.",
+      "elements": [
+        "user",
+        "user.username",
+        "user.email",
+        "user.password",
+        "user.date_of_account_creation",
+        "constraint:C01"
+      ]
+    },
+    {
+      "id": "FR02",
+      "significance": "Should",
+      "status": "not_applicable",
+      "text": "The system shall show during registration, whether the entered password is strong.",
+      "elements": [],
+      "reason": "Password strength is checked on the screen, while typing, and is not stored."
+    },
+    {
+      "id": "FR03",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall allow a user to log in with its email and password.",
+      "elements": [
+        "user",
+        "user.email",
+        "user.password"
+      ]
+    },
+    {
+      "id": "FR04",
+      "significance": "Should",
+      "status": "covered",
+      "text": "The system shall allow a user to log in with a passkey confirmed by Face ID.",
+      "elements": [
+        "passkey",
+        "passkey.credential_identifier",
+        "passkey.public_key",
+        "rel:has:passkey/user"
+      ]
+    },
+    {
+      "id": "FR05",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall inform the person with an error message, when the login data is incorrect.",
+      "elements": [
+        "user",
+        "user.email",
+        "user.password"
+      ]
+    },
+    {
+      "id": "FR06",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall allow a guest to continue without an account and to view only public albums and drinks created by other users.",
+      "elements": [
+        "album",
+        "album.public_status",
+        "rel:owns:album/user",
+        "drink",
+        "rel:authors:drink_version/user"
+      ]
+    },
+    {
+      "id": "FR07",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall allow a user to change its username, profile image and password. A change of the password requires the current password and the new password given twice.",
+      "elements": [
+        "user",
+        "user.username",
+        "user.profile_image",
+        "user.password"
+      ]
+    },
+    {
+      "id": "FR08",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall allow a user to delete its account together with its passkeys, flavour preferences, reviews, liked ingredients and albums.",
+      "elements": [
+        "user",
+        "rel:has:passkey/user",
+        "rel:prefers:flavour_preferences/user",
+        "rel:writes:review/user",
+        "rel:likes:ingredient/user",
+        "rel:owns:album/user",
+        "constraint:C25"
+      ]
+    },
+    {
+      "id": "FR09",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall show the most popular drinks and the drinks suggested for the user based on its flavour preferences.",
+      "elements": [
+        "drink",
+        "drink.popularity",
+        "flavour_preferences",
+        "rel:prefers:flavour_preferences/user",
+        "drink_version.flavour_distribution"
+      ]
+    },
+    {
+      "id": "FR10",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall allow searching drinks by their name, base spirit and ingredients.",
+      "elements": [
+        "drink",
+        "drink.name",
+        "drink.base_spirit",
+        "rel:contains:drink_version/ingredient",
+        "ingredient.name"
+      ]
+    },
+    {
+      "id": "FR11",
+      "significance": "Should",
+      "status": "covered",
+      "text": "The system shall allow filtering drinks by base spirit, by mocktail or alcoholic, and by included or excluded ingredients, and show the number of matching drinks before applying the filters.",
+      "elements": [
+        "drink.base_spirit",
+        "drink_version.total_alcohol_percentage",
+        "rel:contains:drink_version/ingredient",
+        "ingredient"
+      ]
+    },
+    {
+      "id": "FR12",
+      "significance": "Should",
+      "status": "covered",
+      "text": "The system shall allow sorting drinks by popularity or by average rating.",
+      "elements": [
+        "drink.popularity",
+        "drink.average_rating",
+        "constraint:C03",
+        "constraint:C04"
+      ]
+    },
+    {
+      "id": "FR13",
+      "significance": "Could",
+      "status": "covered",
+      "text": "The system shall show drinks one by one and allow the user to save each of them to the favourites album or to skip it.",
+      "elements": [
+        "album",
+        "album.kind",
+        "rel:includes:album/drink"
+      ]
+    },
+    {
+      "id": "FR14",
+      "significance": "Could",
+      "status": "covered",
+      "text": "The system shall show the drinks, whose all ingredients are among the ingredients given by the user.",
+      "elements": [
+        "ingredient",
+        "rel:contains:drink_version/ingredient"
+      ]
+    },
+    {
+      "id": "FR15",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall allow a user to create a drink with its name, description, photo and ingredients with their amounts and units.",
+      "elements": [
+        "drink",
+        "drink.name",
+        "drink.description",
+        "drink.photo",
+        "drink.date_of_creation",
+        "rel:contains:drink_version/ingredient",
+        "contains.amount",
+        "contains.unit"
+      ]
+    },
+    {
+      "id": "FR16",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall save every change of a drink as a new drink version with the next version number, its name, branch, message, date of creation and the version, from which it was made.",
+      "elements": [
+        "drink_version",
+        "drink_version.version_number",
+        "drink_version.name",
+        "drink_version.branch",
+        "drink_version.message",
+        "drink_version.date_of_creation",
+        "rel:is based on:drink_version/drink_version:base",
+        "rel:has version:drink/drink_version",
+        "constraint:C05",
+        "constraint:C06",
+        "constraint:C07"
+      ]
+    },
+    {
+      "id": "FR17",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall save a change of a drink authored by another user as a new drink version authored by the user, without changing the original version.",
+      "elements": [
+        "rel:authors:drink_version/user",
+        "rel:is based on:drink_version/drink_version:base",
+        "drink_version.version_number",
+        "constraint:C09"
+      ]
+    },
+    {
+      "id": "FR18",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall calculate the total volume, total alcohol percentage, mocktail status and flavour distribution of every drink version from its ingredients.",
+      "elements": [
+        "drink_version.total_volume",
+        "drink_version.total_alcohol_percentage",
+        "drink_version.flavour_distribution",
+        "contains.amount",
+        "ingredient.alcohol_percentage",
+        "constraint:C11",
+        "constraint:C12",
+        "constraint:C13",
+        "constraint:C14"
+      ]
+    },
+    {
+      "id": "FR19",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall allow the author of a drink version to set its wanted flavour levels and intensity.",
+      "elements": [
+        "rel:prefers:drink_version/flavour_preferences",
+        "flavour_preferences.sweetness",
+        "flavour_preferences.sourness",
+        "flavour_preferences.spiciness",
+        "flavour_preferences.bitterness",
+        "flavour_preferences.fruitiness",
+        "flavour_preferences.herbalness",
+        "flavour_preferences.smokiness",
+        "flavour_preferences.fizziness",
+        "flavour_preferences.intensity"
+      ]
+    },
+    {
+      "id": "FR20",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall calculate a score of every ingredient from the flavour preferences of the user, the wanted flavour of the drink version and the reviews, suggest the ingredients with the highest score and show the score of every ingredient.",
+      "elements": [
+        "ingredient",
+        "rel:prefers:flavour_preferences/user",
+        "rel:prefers:drink_version/flavour_preferences",
+        "rel:is about:drink_version/review",
+        "review.number_of_stars",
+        "flavour_preferences.sweetness",
+        "flavour_preferences.sourness",
+        "flavour_preferences.spiciness",
+        "flavour_preferences.bitterness",
+        "flavour_preferences.fruitiness",
+        "flavour_preferences.herbalness",
+        "flavour_preferences.smokiness",
+        "flavour_preferences.fizziness",
+        "flavour_preferences.intensity"
+      ]
+    },
+    {
+      "id": "FR21",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall allow a user to set its flavour preferences and to like ingredients, also spirits.",
+      "elements": [
+        "rel:prefers:flavour_preferences/user",
+        "rel:likes:ingredient/user",
+        "flavour_preferences.sweetness",
+        "flavour_preferences.sourness",
+        "flavour_preferences.spiciness",
+        "flavour_preferences.bitterness",
+        "flavour_preferences.fruitiness",
+        "flavour_preferences.herbalness",
+        "flavour_preferences.smokiness",
+        "flavour_preferences.fizziness",
+        "flavour_preferences.intensity"
+      ]
+    },
+    {
+      "id": "FR22",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall allow a user, who confirmed that it tasted a drink version, to review it with one to five stars, the perception of sweetness, sourness, bitterness and strength, and notes.",
+      "elements": [
+        "review",
+        "review.number_of_stars",
+        "review.notes",
+        "review.date_of_creation",
+        "review.sweetness_perception",
+        "review.sourness_perception",
+        "review.bitterness_perception",
+        "review.strength_perception",
+        "rel:writes:review/user",
+        "rel:is about:drink_version/review",
+        "constraint:C18"
+      ]
+    },
+    {
+      "id": "FR23",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall show the favourites, to check out and your drinks albums and the other albums of the user, each with its icon and number of drinks, and allow searching them by name.",
+      "elements": [
+        "album",
+        "album.kind",
+        "album.icon",
+        "album.photo",
+        "album.name",
+        "album.number_of_drinks",
+        "rel:owns:album/user",
+        "constraint:C19",
+        "constraint:C21"
+      ]
+    },
+    {
+      "id": "FR24",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall allow a user to create an album with a name, icon and drinks, and later rename it and add or remove its drinks.",
+      "elements": [
+        "album",
+        "album.name",
+        "album.icon",
+        "album.photo",
+        "rel:includes:album/drink",
+        "includes.date_of_adding"
+      ]
+    },
+    {
+      "id": "FR25",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall allow the owner of an album to make it public or private.",
+      "elements": [
+        "album.public_status",
+        "rel:owns:album/user",
+        "constraint:C23"
+      ]
+    },
+    {
+      "id": "FR26",
+      "significance": "Should",
+      "status": "covered",
+      "text": "The system shall show the estimated match of a drink version with the flavour preferences of the user.",
+      "elements": [
+        "prefers.estimated_match",
+        "rel:prefers:drink_version/flavour_preferences",
+        "constraint:C15"
+      ]
+    },
+    {
+      "id": "FR27",
+      "significance": "Should",
+      "status": "covered",
+      "text": "The system shall update the flavour preferences of a user from its review, when the user allows it.",
+      "elements": [
+        "review",
+        "review.sweetness_perception",
+        "review.sourness_perception",
+        "review.bitterness_perception",
+        "review.strength_perception",
+        "rel:prefers:flavour_preferences/user",
+        "flavour_preferences.sweetness",
+        "flavour_preferences.sourness",
+        "flavour_preferences.spiciness",
+        "flavour_preferences.bitterness",
+        "flavour_preferences.fruitiness",
+        "flavour_preferences.herbalness",
+        "flavour_preferences.smokiness",
+        "flavour_preferences.fizziness",
+        "flavour_preferences.intensity"
+      ]
+    },
+    {
+      "id": "FR28",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall refuse to continue a branch from a drink version, that is not the latest drink version of that branch.",
+      "elements": [
+        "drink_version.branch",
+        "drink_version.version_number",
+        "rel:is based on:drink_version/drink_version:base",
+        "constraint:C07"
+      ]
+    },
+    {
+      "id": "FR29",
+      "significance": "Should",
+      "status": "covered",
+      "text": "The system shall show the history of the drink versions of a drink and allow opening any of them in the drink mixer.",
+      "elements": [
+        "drink_version",
+        "rel:has version:drink/drink_version",
+        "drink_version.date_of_creation"
+      ]
+    },
+    {
+      "id": "FR30",
+      "significance": "Could",
+      "status": "covered",
+      "text": "The system shall allow a user to export its drink versions, reviews and flavour preferences as a file.",
+      "elements": [
+        "drink_version",
+        "review",
+        "flavour_preferences"
+      ]
+    },
+    {
+      "id": "NFR01",
+      "significance": "Must",
+      "status": "not_applicable",
+      "text": "The application shall run on iPhone with iOS and be written in Swift with SwiftUI.",
+      "elements": [],
+      "reason": "The platform and the language of the application are not about stored data."
+    },
+    {
+      "id": "NFR02",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall store passwords only as bcrypt hashes and never as plain text.",
+      "elements": [
+        "user.password"
+      ],
+      "lengths": {
+        "User.password": 60
+      }
+    },
+    {
+      "id": "NFR03",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall store only the public key of a passkey. The private key never leaves the device of the user.",
+      "elements": [
+        "passkey.public_key",
+        "passkey.credential_identifier"
+      ]
+    },
+    {
+      "id": "NFR04",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall never show a private album to anyone except its owner.",
+      "elements": [
+        "album.public_status",
+        "rel:owns:album/user",
+        "constraint:C24"
+      ]
+    },
+    {
+      "id": "NFR05",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall reject flavour levels outside 0 to 20, numbers of stars outside 1 to 5 and alcohol percentages outside 0 to 100.",
+      "elements": [
+        "review.number_of_stars",
+        "ingredient.alcohol_percentage",
+        "flavour_preferences.sweetness",
+        "flavour_preferences.sourness",
+        "flavour_preferences.spiciness",
+        "flavour_preferences.bitterness",
+        "flavour_preferences.fruitiness",
+        "flavour_preferences.herbalness",
+        "flavour_preferences.smokiness",
+        "flavour_preferences.fizziness",
+        "flavour_preferences.intensity",
+        "constraint:C10",
+        "constraint:C16",
+        "constraint:C18"
+      ]
+    },
+    {
+      "id": "NFR06",
+      "significance": "Must",
+      "status": "covered",
+      "text": "The system shall delete all data of a user, that depends on it, in one step, when the user deletes its account.",
+      "elements": [
+        "user",
+        "rel:has:passkey/user",
+        "rel:prefers:flavour_preferences/user",
+        "rel:writes:review/user",
+        "rel:likes:ingredient/user",
+        "rel:owns:album/user",
+        "constraint:C25"
+      ]
+    },
+    {
+      "id": "NFR07",
+      "significance": "Should",
+      "status": "not_applicable",
+      "text": "The screens shall follow the visual design of the project Figma file Main Screens, with range inputs styled as rotary knobs of a DJ console and drinks shown as scrollable tiles, two in a row.",
+      "elements": [],
+      "reason": "The visual design of the screens is not about stored data."
+    },
+    {
+      "id": "NFR08",
+      "significance": "Must",
+      "status": "not_applicable",
+      "text": "The application shall have a navigation bar at the bottom of the screen with the Library, Drink Mixer and Albums screens.",
+      "elements": [],
+      "reason": "The navigation of the screens is not about stored data."
+    },
+    {
+      "id": "NFR09",
+      "significance": "Should",
+      "status": "not_applicable",
+      "text": "The system shall show the results of a search or filter within 1 second for a library of 10,000 drinks.",
+      "elements": [],
+      "reason": "The time of a search is a performance requirement, not stored data."
+    },
+    {
+      "id": "NFR10",
+      "significance": "Should",
+      "status": "not_applicable",
+      "text": "The screens shall support Dynamic Type and VoiceOver labels.",
+      "elements": [],
+      "reason": "Accessibility of the screens is not about stored data."
+    },
+    {
+      "id": "NFR11",
+      "significance": "Could",
+      "status": "not_applicable",
+      "text": "The interface shall show a drunk effect, shifting the 3D glasses, after the user adds a drink to the favourites.",
+      "elements": [],
+      "reason": "The drunk effect is an animation of the interface, not stored data."
+    }
+  ]
+}

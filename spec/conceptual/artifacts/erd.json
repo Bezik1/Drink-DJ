@@ -1,0 +1,729 @@
+{
+  "matrix": {
+    "file": "spec/requirements/documents/requirements_matrix.pdf",
+    "sha256": "8fdb396bed4d6541b86cf6bcf996b2d3df5c89869a1ad4929a0098b2a4ec67ca"
+  },
+  "entities": {
+    "drink": {
+      "name": "Drink",
+      "cell": [
+        1,
+        0
+      ],
+      "from": [
+        "R07"
+      ],
+      "attributes": [
+        {
+          "name": "Identifier",
+          "kind": "key",
+          "from": [
+            "R07"
+          ]
+        },
+        {
+          "name": "Name",
+          "from": [
+            "R07"
+          ]
+        },
+        {
+          "name": "Description",
+          "from": [
+            "R07"
+          ]
+        },
+        {
+          "name": "Photo",
+          "from": [
+            "R07"
+          ]
+        },
+        {
+          "name": "Date of creation",
+          "from": [
+            "R07"
+          ]
+        },
+        {
+          "name": "Base spirit",
+          "from": [
+            "R07",
+            "R14"
+          ],
+          "values": [
+            "vodka",
+            "gin",
+            "rum",
+            "tequila",
+            "whisky"
+          ]
+        },
+        {
+          "name": "Popularity",
+          "kind": "derived",
+          "from": [
+            "R35"
+          ]
+        },
+        {
+          "name": "Average rating",
+          "kind": "derived",
+          "from": [
+            "R34"
+          ]
+        }
+      ]
+    },
+    "drink_version": {
+      "name": "Drink Version",
+      "cell": [
+        1,
+        1.5
+      ],
+      "weak": true,
+      "from": [
+        "R08",
+        "R09"
+      ],
+      "attributes": [
+        {
+          "name": "Version number",
+          "kind": "partial",
+          "from": [
+            "R08",
+            "R10"
+          ]
+        },
+        {
+          "name": "Name",
+          "from": [
+            "R09"
+          ]
+        },
+        {
+          "name": "Branch",
+          "from": [
+            "R09",
+            "R12"
+          ]
+        },
+        {
+          "name": "Message",
+          "from": [
+            "R09",
+            "R13"
+          ]
+        },
+        {
+          "name": "Date of creation",
+          "from": [
+            "R09"
+          ]
+        },
+        {
+          "name": "Total volume",
+          "kind": "derived",
+          "from": [
+            "R09",
+            "R21"
+          ]
+        },
+        {
+          "name": "Total alcohol percentage",
+          "kind": "derived",
+          "from": [
+            "R09",
+            "R22"
+          ]
+        },
+        {
+          "name": "Flavour distribution",
+          "kind": "derived",
+          "from": [
+            "R24"
+          ]
+        }
+      ]
+    },
+    "user": {
+      "name": "User",
+      "cell": [
+        4,
+        1.5
+      ],
+      "from": [
+        "R01"
+      ],
+      "attributes": [
+        {
+          "name": "Username",
+          "kind": "key",
+          "from": [
+            "R01",
+            "R02"
+          ]
+        },
+        {
+          "name": "Email",
+          "from": [
+            "R01",
+            "R02"
+          ]
+        },
+        {
+          "name": "Password",
+          "from": [
+            "R01"
+          ]
+        },
+        {
+          "name": "Profile image",
+          "from": [
+            "R01",
+            "R03"
+          ]
+        },
+        {
+          "name": "Date of account creation",
+          "from": [
+            "R01"
+          ]
+        }
+      ]
+    },
+    "passkey": {
+      "name": "Passkey",
+      "cell": [
+        5,
+        1.5
+      ],
+      "from": [
+        "R04"
+      ],
+      "attributes": [
+        {
+          "name": "Credential identifier",
+          "kind": "key",
+          "from": [
+            "R04",
+            "R05"
+          ]
+        },
+        {
+          "name": "Public key",
+          "from": [
+            "R04"
+          ]
+        },
+        {
+          "name": "Date of creation",
+          "from": [
+            "R04"
+          ]
+        }
+      ]
+    },
+    "album": {
+      "name": "Album",
+      "cell": [
+        4,
+        0
+      ],
+      "from": [
+        "R37"
+      ],
+      "attributes": [
+        {
+          "name": "Identifier",
+          "kind": "key",
+          "from": [
+            "R37"
+          ]
+        },
+        {
+          "name": "Name",
+          "from": [
+            "R37"
+          ]
+        },
+        {
+          "name": "Icon",
+          "from": [
+            "R37",
+            "R40"
+          ]
+        },
+        {
+          "name": "Photo",
+          "from": [
+            "R37",
+            "R40"
+          ]
+        },
+        {
+          "name": "Kind",
+          "from": [
+            "R37",
+            "R39"
+          ],
+          "values": [
+            "favourites",
+            "to check out",
+            "your drinks",
+            "custom"
+          ]
+        },
+        {
+          "name": "Public status",
+          "from": [
+            "R37",
+            "R45"
+          ]
+        },
+        {
+          "name": "Date of creation",
+          "from": [
+            "R37"
+          ]
+        },
+        {
+          "name": "Number of Drinks",
+          "kind": "derived",
+          "from": [
+            "R37",
+            "R43"
+          ]
+        }
+      ]
+    },
+    "ingredient": {
+      "name": "Ingredient",
+      "cell": [
+        2,
+        4.2
+      ],
+      "from": [
+        "R17"
+      ],
+      "attributes": [
+        {
+          "name": "Name",
+          "kind": "key",
+          "from": [
+            "R17",
+            "R18"
+          ]
+        },
+        {
+          "name": "Category",
+          "from": [
+            "R17"
+          ],
+          "values": [
+            "alcohol",
+            "addition"
+          ]
+        },
+        {
+          "name": "Alcohol percentage",
+          "from": [
+            "R17",
+            "R18"
+          ]
+        }
+      ]
+    },
+    "flavour_preferences": {
+      "name": "Flavour Preferences",
+      "cell": [
+        2.6,
+        3.2
+      ],
+      "from": [
+        "R26"
+      ],
+      "attributes": [
+        {
+          "name": "Identifier",
+          "kind": "key",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "Sweetness",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "Sourness",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "Spiciness",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "Bitterness",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "Fruitiness",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "Herbalness",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "Smokiness",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "Fizziness",
+          "from": [
+            "R26"
+          ]
+        },
+        {
+          "name": "Intensity",
+          "from": [
+            "R26"
+          ]
+        }
+      ]
+    },
+    "review": {
+      "name": "Review",
+      "cell": [
+        3,
+        1.5
+      ],
+      "from": [
+        "R30"
+      ],
+      "attributes": [
+        {
+          "name": "Identifier",
+          "kind": "key",
+          "from": [
+            "R30"
+          ]
+        },
+        {
+          "name": "Number of stars",
+          "from": [
+            "R30",
+            "R31"
+          ]
+        },
+        {
+          "name": "Notes",
+          "from": [
+            "R30",
+            "R33"
+          ]
+        },
+        {
+          "name": "Date of creation",
+          "from": [
+            "R30"
+          ]
+        },
+        {
+          "name": "Sweetness perception",
+          "from": [
+            "R30",
+            "R31"
+          ],
+          "values": [
+            "not rated",
+            "too little",
+            "just right",
+            "too much"
+          ]
+        },
+        {
+          "name": "Sourness perception",
+          "from": [
+            "R30",
+            "R31"
+          ],
+          "values": [
+            "not rated",
+            "too little",
+            "just right",
+            "too much"
+          ]
+        },
+        {
+          "name": "Bitterness perception",
+          "from": [
+            "R30",
+            "R31"
+          ],
+          "values": [
+            "not rated",
+            "too little",
+            "just right",
+            "too much"
+          ]
+        },
+        {
+          "name": "Strength perception",
+          "from": [
+            "R30",
+            "R31"
+          ],
+          "values": [
+            "not rated",
+            "too little",
+            "just right",
+            "too much"
+          ]
+        }
+      ]
+    }
+  },
+  "relationships": [
+    {
+      "name": "has version",
+      "identifying": true,
+      "from": [
+        "R08",
+        "R10"
+      ],
+      "ends": {
+        "drink": "1",
+        "drink_version": "1..N"
+      },
+      "cell": [
+        1,
+        0.45
+      ]
+    },
+    {
+      "name": "authors",
+      "cell": [
+        2.6,
+        2.2
+      ],
+      "free": true,
+      "from": [
+        "R15",
+        "R16"
+      ],
+      "ends": {
+        "user": "0..1",
+        "drink_version": "0..N"
+      }
+    },
+    {
+      "name": "is about",
+      "from": [
+        "R32"
+      ],
+      "ends": {
+        "drink_version": "1",
+        "review": "0..N"
+      },
+      "cell": [
+        2.35,
+        1.5
+      ]
+    },
+    {
+      "name": "writes",
+      "from": [
+        "R30",
+        "R32"
+      ],
+      "ends": {
+        "user": "1",
+        "review": "0..N"
+      }
+    },
+    {
+      "name": "contains",
+      "from": [
+        "R19",
+        "R20"
+      ],
+      "ends": {
+        "drink_version": "0..N",
+        "ingredient": "1..N"
+      },
+      "attributes": [
+        {
+          "name": "Amount",
+          "from": [
+            "R19"
+          ]
+        },
+        {
+          "name": "Unit",
+          "from": [
+            "R19"
+          ]
+        }
+      ],
+      "cell": [
+        1.55,
+        3.4
+      ],
+      "free": true
+    },
+    {
+      "name": "prefers",
+      "cell": [
+        2.0,
+        2.7
+      ],
+      "free": true,
+      "from": [
+        "R28",
+        "R29"
+      ],
+      "ends": {
+        "drink_version": "0..1",
+        "flavour_preferences": "1"
+      },
+      "attributes": [
+        {
+          "name": "Estimated match",
+          "kind": "derived",
+          "from": [
+            "R25"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "prefers",
+      "cell": [
+        3.5,
+        2.6
+      ],
+      "free": true,
+      "from": [
+        "R27",
+        "R29"
+      ],
+      "ends": {
+        "user": "0..1",
+        "flavour_preferences": "1"
+      }
+    },
+    {
+      "name": "likes",
+      "cell": [
+        4,
+        4.2
+      ],
+      "from": [
+        "R36"
+      ],
+      "ends": {
+        "user": "0..N",
+        "ingredient": "0..N"
+      }
+    },
+    {
+      "name": "has",
+      "from": [
+        "R04",
+        "R05"
+      ],
+      "ends": {
+        "user": "1",
+        "passkey": "0..N"
+      }
+    },
+    {
+      "name": "owns",
+      "from": [
+        "R38",
+        "R39"
+      ],
+      "ends": {
+        "user": "1",
+        "album": "0..N"
+      }
+    },
+    {
+      "name": "includes",
+      "from": [
+        "R41",
+        "R42",
+        "R44"
+      ],
+      "ends": {
+        "album": "0..N",
+        "drink": "0..N"
+      },
+      "attributes": [
+        {
+          "name": "Date of adding",
+          "from": [
+            "R41"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "is based on",
+      "cell": [
+        0.35,
+        2.35
+      ],
+      "from": [
+        "R11"
+      ],
+      "ends": {
+        "drink_version": "0..N",
+        "drink_version:base": "0..1"
+      }
+    }
+  ],
+  "not_drawn": {
+    "R06": "Guest is a person without an account, and no information about a Guest is stored.",
+    "R46": "Visibility of private and public Albums is a rule of access, which uses Public status and the owner, but stores no new data.",
+    "R47": "Deleting the data of a User with its account is a rule of deletion, which Chen notation cannot show.",
+    "R23": "Mocktail is a rule over Total alcohol percentage of a Drink Version (equal to zero), so it is not a separate stored value."
+  },
+  "assumptions": [
+    "R02: Username is the key of User. Email is also unique, which Chen notation cannot show with a second underline.",
+    "R10: Version numbers of a Drink are consecutive from 1, and a new Drink Version gets the highest number plus one.",
+    "R12: A new Drink Version continues a branch only from the latest Drink Version of that branch, which Chen notation cannot show.",
+    "R13, R33: Message of a Drink Version and Notes of a Review can be empty.",
+    "R14: Base spirit is empty for a Drink without alcohol.",
+    "R15: A Drink Version of a classic Drink has no author, so User is 0..1 in authors.",
+    "R16: A new Drink Version made by another User belongs to the same Drink and does not change its parent.",
+    "R25: Estimated match is calculated, when the Drink Version is saved, from its Ingredients and the Flavour Preferences it prefers.",
+    "R27, R28, R29: Each Flavour Preferences belongs to exactly one User or exactly one Drink Version, never to both, which Chen notation cannot show.",
+    "R32: A User can write many Reviews of one Drink Version, so Review is an entity with its own Identifier instead of the team's M:N relationship reviews.",
+    "R35: Popularity counts the Reviews of all Drink Versions of a Drink and the Albums that contain the Drink.",
+    "R39: Each User has exactly one Album of the kinds favourites, to check out and your drinks, and they cannot be deleted.",
+    "R40: Album without an Icon uses the default icon.",
+    "R42: A Drink is contained in an Album only once, which follows from the M:N relationship includes.",
+    "R44: Album of the kind your drinks contains exactly the Drinks with a Drink Version authored by its owner.",
+    "R07, R30, R37: Identifier is the key of Drink, Review and Album, because no other attribute of them is unique.",
+    "R25: Estimated match belongs to the relationship prefers of a Drink Version, because it compares the Drink Version with the Flavour Preferences it prefers.",
+    "R11: is based on joins a Drink Version with the Drink Version of the same Drink, from which it was made (the team ERD's has_parent). Each Drink Version is based on 0..1 Drink Versions, and 0..N Drink Versions can be based on one.",
+    "R11: The base Drink Version belongs to the same Drink and has a lower version number, which Chen notation cannot show."
+  ]
+}
