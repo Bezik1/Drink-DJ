@@ -4,7 +4,7 @@
   },
   "uml_constraints": {
     "file": "spec/conceptual/artifacts/uml_class_diagram_constraints.json",
-    "sha256": "86b320a5564ae61166140ae3c5894893615951930de9734de1cf0f3a50b9e80c"
+    "sha256": "dacb1965b26740e748bfccf62a500b24de3b2ace6c14d6b6c6bc1b02f2c76010"
   },
   "covered": {},
   "constraints": [

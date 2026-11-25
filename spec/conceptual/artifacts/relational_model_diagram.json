@@ -1,7 +1,7 @@
 {
   "uml": {
     "file": "spec/conceptual/artifacts/uml_class_diagram.json",
-    "sha256": "797902259e3812873d037fc710560bcc248ab355ab9bccb388121518c5301ca6"
+    "sha256": "a4c054f88708a2559bb5a1ef50890285e2f24419b28e7a0dbd657dc51a2e2a4c"
   },
   "tables": {
     "Drink": {
@@ -285,8 +285,8 @@
     "Passkey": {
       "class": "passkey",
       "cell": [
-        4,
-        1.5
+        3,
+        1
       ],
       "columns": [
         {
@@ -414,7 +414,7 @@
       "class": "ingredient",
       "cell": [
         0,
-        3.2
+        2
       ],
       "columns": [
         {
@@ -445,7 +445,7 @@
       "class": "flavour_preferences",
       "cell": [
         2,
-        2.3
+        2
       ],
       "columns": [
         {
@@ -518,7 +518,7 @@
       "class": "review",
       "cell": [
         2,
-        1.2
+        1
       ],
       "columns": [
         {
@@ -615,7 +615,7 @@
       "association": "contains:drink_version/ingredient",
       "cell": [
         0,
-        2.2
+        1
       ],
       "columns": [
         {
@@ -675,8 +675,8 @@
     "Liked_Ingredient": {
       "association": "likes:ingredient/user",
       "cell": [
-        2,
-        3.2
+        1,
+        2.5
       ],
       "columns": [
         {

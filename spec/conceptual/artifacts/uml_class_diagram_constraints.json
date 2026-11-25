@@ -4,7 +4,7 @@
   },
   "erd": {
     "file": "spec/conceptual/artifacts/erd.json",
-    "sha256": "b8712958eea07a74a70f511aeff59dba6fb937fd422504c0fd21a28cc2e512bc"
+    "sha256": "d63347ef8b1a9bc283a378d202b57bc0ddff1f3cd6c568368bd42d0cf461ead0"
   },
   "constraints": [
     {

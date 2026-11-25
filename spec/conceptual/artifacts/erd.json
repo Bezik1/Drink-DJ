@@ -7,7 +7,7 @@
     "drink": {
       "name": "Drink",
       "cell": [
-        1,
+        0,
         0
       ],
       "from": [
@@ -78,8 +78,8 @@
     "drink_version": {
       "name": "Drink Version",
       "cell": [
-        1,
-        1.5
+        0,
+        1
       ],
       "weak": true,
       "from": [
@@ -149,8 +149,8 @@
     "user": {
       "name": "User",
       "cell": [
-        4,
-        1.5
+        2.2,
+        1
       ],
       "from": [
         "R01"
@@ -195,8 +195,8 @@
     "passkey": {
       "name": "Passkey",
       "cell": [
-        5,
-        1.5
+        3.0,
+        1
       ],
       "from": [
         "R04"
@@ -227,7 +227,7 @@
     "album": {
       "name": "Album",
       "cell": [
-        4,
+        2.2,
         0
       ],
       "from": [
@@ -300,8 +300,8 @@
     "ingredient": {
       "name": "Ingredient",
       "cell": [
-        2,
-        4.2
+        0,
+        2.3
       ],
       "from": [
         "R17"
@@ -337,8 +337,8 @@
     "flavour_preferences": {
       "name": "Flavour Preferences",
       "cell": [
-        2.6,
-        3.2
+        1.1,
+        1.75
       ],
       "from": [
         "R26"
@@ -410,8 +410,8 @@
     "review": {
       "name": "Review",
       "cell": [
-        3,
-        1.5
+        1.1,
+        1
       ],
       "from": [
         "R30"
@@ -510,19 +510,10 @@
       "ends": {
         "drink": "1",
         "drink_version": "1..N"
-      },
-      "cell": [
-        1,
-        0.45
-      ]
+      }
     },
     {
       "name": "authors",
-      "cell": [
-        2.6,
-        2.2
-      ],
-      "free": true,
       "from": [
         "R15",
         "R16"
@@ -530,7 +521,12 @@
       "ends": {
         "user": "0..1",
         "drink_version": "0..N"
-      }
+      },
+      "cell": [
+        1.1,
+        1.38
+      ],
+      "free": true
     },
     {
       "name": "is about",
@@ -540,11 +536,7 @@
       "ends": {
         "drink_version": "1",
         "review": "0..N"
-      },
-      "cell": [
-        2.35,
-        1.5
-      ]
+      }
     },
     {
       "name": "writes",
@@ -580,20 +572,10 @@
             "R19"
           ]
         }
-      ],
-      "cell": [
-        1.55,
-        3.4
-      ],
-      "free": true
+      ]
     },
     {
       "name": "prefers",
-      "cell": [
-        2.0,
-        2.7
-      ],
-      "free": true,
       "from": [
         "R28",
         "R29"
@@ -610,15 +592,15 @@
             "R25"
           ]
         }
-      ]
+      ],
+      "cell": [
+        0.495,
+        1.58
+      ],
+      "free": true
     },
     {
       "name": "prefers",
-      "cell": [
-        3.5,
-        2.6
-      ],
-      "free": true,
       "from": [
         "R27",
         "R29"
@@ -626,21 +608,26 @@
       "ends": {
         "user": "0..1",
         "flavour_preferences": "1"
-      }
+      },
+      "cell": [
+        1.705,
+        1.58
+      ],
+      "free": true
     },
     {
       "name": "likes",
-      "cell": [
-        4,
-        4.2
-      ],
       "from": [
         "R36"
       ],
       "ends": {
         "user": "0..N",
         "ingredient": "0..N"
-      }
+      },
+      "cell": [
+        2.2,
+        2.3
+      ]
     },
     {
       "name": "has",
@@ -686,17 +673,17 @@
     },
     {
       "name": "is based on",
-      "cell": [
-        0.35,
-        2.35
-      ],
       "from": [
         "R11"
       ],
       "ends": {
         "drink_version": "0..N",
         "drink_version:base": "0..1"
-      }
+      },
+      "cell": [
+        -0.5,
+        0.45
+      ]
     }
   ],
   "not_drawn": {
