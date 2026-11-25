@@ -1,0 +1,781 @@
+{
+  "uml": {
+    "file": "spec/conceptual/artifacts/uml_class_diagram.json",
+    "sha256": "797902259e3812873d037fc710560bcc248ab355ab9bccb388121518c5301ca6"
+  },
+  "tables": {
+    "Drink": {
+      "class": "drink",
+      "cell": [
+        1,
+        0
+      ],
+      "columns": [
+        {
+          "name": "identifier",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "drink.identifier"
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "null": false,
+          "uml": "drink.name"
+        },
+        {
+          "name": "description",
+          "type": "VARCHAR(1000)",
+          "null": false,
+          "uml": "drink.description"
+        },
+        {
+          "name": "photo",
+          "type": "VARCHAR(255)",
+          "null": true,
+          "uml": "drink.photo"
+        },
+        {
+          "name": "date_of_creation",
+          "type": "DATE",
+          "null": false,
+          "uml": "drink.date_of_creation"
+        },
+        {
+          "name": "base_spirit",
+          "type": "VARCHAR(20)",
+          "null": true,
+          "uml": "drink.base_spirit"
+        },
+        {
+          "name": "popularity",
+          "type": "DECIMAL(10,2)",
+          "null": false,
+          "uml": "drink.popularity"
+        },
+        {
+          "name": "average_rating",
+          "type": "DECIMAL(10,2)",
+          "null": false,
+          "uml": "drink.average_rating"
+        }
+      ],
+      "primary_key": [
+        "identifier"
+      ],
+      "foreign_keys": []
+    },
+    "Drink_Version": {
+      "class": "drink_version",
+      "cell": [
+        1,
+        1.5
+      ],
+      "columns": [
+        {
+          "name": "drink_version_id",
+          "type": "INTEGER",
+          "null": false,
+          "assumed": "Surrogate key of Drink Version, because its key has 2 columns and other tables reference it. The natural key (identifier, version_number) is UNIQUE"
+        },
+        {
+          "name": "version_number",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "drink_version.version_number"
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "null": false,
+          "uml": "drink_version.name"
+        },
+        {
+          "name": "branch",
+          "type": "VARCHAR(100)",
+          "null": false,
+          "uml": "drink_version.branch"
+        },
+        {
+          "name": "message",
+          "type": "VARCHAR(255)",
+          "null": true,
+          "uml": "drink_version.message"
+        },
+        {
+          "name": "date_of_creation",
+          "type": "DATE",
+          "null": false,
+          "uml": "drink_version.date_of_creation"
+        },
+        {
+          "name": "total_volume",
+          "type": "DECIMAL(10,2)",
+          "null": false,
+          "uml": "drink_version.total_volume"
+        },
+        {
+          "name": "total_alcohol_percentage",
+          "type": "DECIMAL(10,2)",
+          "null": false,
+          "uml": "drink_version.total_alcohol_percentage"
+        },
+        {
+          "name": "flavour_distribution",
+          "type": "VARCHAR(255)",
+          "null": false,
+          "uml": "drink_version.flavour_distribution"
+        },
+        {
+          "name": "estimated_match",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "prefers.estimated_match"
+        },
+        {
+          "name": "drink_identifier",
+          "type": "INTEGER",
+          "null": false
+        },
+        {
+          "name": "author_username",
+          "type": "VARCHAR(50)",
+          "null": true
+        },
+        {
+          "name": "flavour_preferences_identifier",
+          "type": "INTEGER",
+          "null": false
+        },
+        {
+          "name": "base_drink_version_id",
+          "type": "INTEGER",
+          "null": true
+        }
+      ],
+      "primary_key": [
+        "drink_version_id"
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "drink_identifier"
+          ],
+          "references": "Drink",
+          "to": [
+            "identifier"
+          ],
+          "association": "has version:drink/drink_version",
+          "multiplicity": "1..*",
+          "on_delete": "CASCADE"
+        },
+        {
+          "columns": [
+            "author_username"
+          ],
+          "references": "User",
+          "to": [
+            "username"
+          ],
+          "association": "authors:drink_version/user",
+          "multiplicity": "0..*",
+          "on_delete": "SET NULL"
+        },
+        {
+          "columns": [
+            "flavour_preferences_identifier"
+          ],
+          "references": "Flavour_Preferences",
+          "to": [
+            "identifier"
+          ],
+          "association": "prefers:drink_version/flavour_preferences",
+          "multiplicity": "0..1",
+          "on_delete": "NO ACTION"
+        },
+        {
+          "columns": [
+            "base_drink_version_id"
+          ],
+          "references": "Drink_Version",
+          "to": [
+            "drink_version_id"
+          ],
+          "association": "is based on:drink_version/drink_version:base",
+          "multiplicity": "0..*",
+          "on_delete": "SET NULL"
+        }
+      ],
+      "unique": [
+        [
+          "drink_identifier",
+          "version_number"
+        ],
+        [
+          "flavour_preferences_identifier"
+        ]
+      ]
+    },
+    "User": {
+      "class": "user",
+      "cell": [
+        3,
+        1.5
+      ],
+      "columns": [
+        {
+          "name": "username",
+          "type": "VARCHAR(50)",
+          "null": false,
+          "uml": "user.username"
+        },
+        {
+          "name": "email",
+          "type": "VARCHAR(254)",
+          "null": false,
+          "uml": "user.email"
+        },
+        {
+          "name": "password",
+          "type": "VARCHAR(255)",
+          "null": false,
+          "uml": "user.password"
+        },
+        {
+          "name": "profile_image",
+          "type": "VARCHAR(255)",
+          "null": true,
+          "uml": "user.profile_image"
+        },
+        {
+          "name": "date_of_account_creation",
+          "type": "DATE",
+          "null": false,
+          "uml": "user.date_of_account_creation"
+        },
+        {
+          "name": "flavour_preferences_identifier",
+          "type": "INTEGER",
+          "null": false
+        }
+      ],
+      "primary_key": [
+        "username"
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "flavour_preferences_identifier"
+          ],
+          "references": "Flavour_Preferences",
+          "to": [
+            "identifier"
+          ],
+          "association": "prefers:flavour_preferences/user",
+          "multiplicity": "0..1",
+          "on_delete": "NO ACTION"
+        }
+      ],
+      "unique": [
+        [
+          "flavour_preferences_identifier"
+        ]
+      ]
+    },
+    "Passkey": {
+      "class": "passkey",
+      "cell": [
+        4,
+        1.5
+      ],
+      "columns": [
+        {
+          "name": "credential_identifier",
+          "type": "VARCHAR(255)",
+          "null": false,
+          "uml": "passkey.credential_identifier"
+        },
+        {
+          "name": "public_key",
+          "type": "VARCHAR(1000)",
+          "null": false,
+          "uml": "passkey.public_key"
+        },
+        {
+          "name": "date_of_creation",
+          "type": "DATE",
+          "null": false,
+          "uml": "passkey.date_of_creation"
+        },
+        {
+          "name": "username",
+          "type": "VARCHAR(50)",
+          "null": false
+        }
+      ],
+      "primary_key": [
+        "credential_identifier"
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "username"
+          ],
+          "references": "User",
+          "to": [
+            "username"
+          ],
+          "association": "has:passkey/user",
+          "multiplicity": "0..*",
+          "on_delete": "CASCADE"
+        }
+      ]
+    },
+    "Album": {
+      "class": "album",
+      "cell": [
+        3,
+        0
+      ],
+      "columns": [
+        {
+          "name": "identifier",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "album.identifier"
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "null": false,
+          "uml": "album.name"
+        },
+        {
+          "name": "icon",
+          "type": "VARCHAR(255)",
+          "null": true,
+          "uml": "album.icon"
+        },
+        {
+          "name": "photo",
+          "type": "VARCHAR(255)",
+          "null": true,
+          "uml": "album.photo"
+        },
+        {
+          "name": "kind",
+          "type": "VARCHAR(20)",
+          "null": false,
+          "uml": "album.kind"
+        },
+        {
+          "name": "public_status",
+          "type": "BOOLEAN",
+          "null": false,
+          "uml": "album.public_status"
+        },
+        {
+          "name": "date_of_creation",
+          "type": "DATE",
+          "null": false,
+          "uml": "album.date_of_creation"
+        },
+        {
+          "name": "number_of_drinks",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "album.number_of_drinks"
+        },
+        {
+          "name": "username",
+          "type": "VARCHAR(50)",
+          "null": false
+        }
+      ],
+      "primary_key": [
+        "identifier"
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "username"
+          ],
+          "references": "User",
+          "to": [
+            "username"
+          ],
+          "association": "owns:album/user",
+          "multiplicity": "0..*",
+          "on_delete": "CASCADE"
+        }
+      ]
+    },
+    "Ingredient": {
+      "class": "ingredient",
+      "cell": [
+        0,
+        3.2
+      ],
+      "columns": [
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "null": false,
+          "uml": "ingredient.name"
+        },
+        {
+          "name": "category",
+          "type": "VARCHAR(20)",
+          "null": false,
+          "uml": "ingredient.category"
+        },
+        {
+          "name": "alcohol_percentage",
+          "type": "DECIMAL(10,2)",
+          "null": false,
+          "uml": "ingredient.alcohol_percentage"
+        }
+      ],
+      "primary_key": [
+        "name"
+      ],
+      "foreign_keys": []
+    },
+    "Flavour_Preferences": {
+      "class": "flavour_preferences",
+      "cell": [
+        2,
+        2.3
+      ],
+      "columns": [
+        {
+          "name": "identifier",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "flavour_preferences.identifier"
+        },
+        {
+          "name": "sweetness",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "flavour_preferences.sweetness"
+        },
+        {
+          "name": "sourness",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "flavour_preferences.sourness"
+        },
+        {
+          "name": "spiciness",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "flavour_preferences.spiciness"
+        },
+        {
+          "name": "bitterness",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "flavour_preferences.bitterness"
+        },
+        {
+          "name": "fruitiness",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "flavour_preferences.fruitiness"
+        },
+        {
+          "name": "herbalness",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "flavour_preferences.herbalness"
+        },
+        {
+          "name": "smokiness",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "flavour_preferences.smokiness"
+        },
+        {
+          "name": "fizziness",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "flavour_preferences.fizziness"
+        },
+        {
+          "name": "intensity",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "flavour_preferences.intensity"
+        }
+      ],
+      "primary_key": [
+        "identifier"
+      ],
+      "foreign_keys": []
+    },
+    "Review": {
+      "class": "review",
+      "cell": [
+        2,
+        1.2
+      ],
+      "columns": [
+        {
+          "name": "identifier",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "review.identifier"
+        },
+        {
+          "name": "number_of_stars",
+          "type": "INTEGER",
+          "null": false,
+          "uml": "review.number_of_stars"
+        },
+        {
+          "name": "notes",
+          "type": "VARCHAR(1000)",
+          "null": true,
+          "uml": "review.notes"
+        },
+        {
+          "name": "date_of_creation",
+          "type": "DATE",
+          "null": false,
+          "uml": "review.date_of_creation"
+        },
+        {
+          "name": "sweetness_perception",
+          "type": "VARCHAR(20)",
+          "null": false,
+          "uml": "review.sweetness_perception"
+        },
+        {
+          "name": "sourness_perception",
+          "type": "VARCHAR(20)",
+          "null": false,
+          "uml": "review.sourness_perception"
+        },
+        {
+          "name": "bitterness_perception",
+          "type": "VARCHAR(20)",
+          "null": false,
+          "uml": "review.bitterness_perception"
+        },
+        {
+          "name": "strength_perception",
+          "type": "VARCHAR(20)",
+          "null": false,
+          "uml": "review.strength_perception"
+        },
+        {
+          "name": "drink_version_id",
+          "type": "INTEGER",
+          "null": false
+        },
+        {
+          "name": "username",
+          "type": "VARCHAR(50)",
+          "null": false
+        }
+      ],
+      "primary_key": [
+        "identifier"
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "drink_version_id"
+          ],
+          "references": "Drink_Version",
+          "to": [
+            "drink_version_id"
+          ],
+          "association": "is about:drink_version/review",
+          "multiplicity": "0..*",
+          "on_delete": "CASCADE"
+        },
+        {
+          "columns": [
+            "username"
+          ],
+          "references": "User",
+          "to": [
+            "username"
+          ],
+          "association": "writes:review/user",
+          "multiplicity": "0..*",
+          "on_delete": "CASCADE"
+        }
+      ]
+    },
+    "Version_Ingredient": {
+      "class": "contains",
+      "association": "contains:drink_version/ingredient",
+      "cell": [
+        0,
+        2.2
+      ],
+      "columns": [
+        {
+          "name": "drink_version_id",
+          "type": "INTEGER",
+          "null": false
+        },
+        {
+          "name": "ingredient_name",
+          "type": "VARCHAR(100)",
+          "null": false
+        },
+        {
+          "name": "amount",
+          "type": "DECIMAL(10,2)",
+          "null": false,
+          "uml": "contains.amount"
+        },
+        {
+          "name": "unit",
+          "type": "VARCHAR(20)",
+          "null": false,
+          "uml": "contains.unit"
+        }
+      ],
+      "primary_key": [
+        "drink_version_id",
+        "ingredient_name"
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "drink_version_id"
+          ],
+          "references": "Drink_Version",
+          "to": [
+            "drink_version_id"
+          ],
+          "association": "contains:drink_version/ingredient",
+          "multiplicity": "1..*",
+          "on_delete": "CASCADE"
+        },
+        {
+          "columns": [
+            "ingredient_name"
+          ],
+          "references": "Ingredient",
+          "to": [
+            "name"
+          ],
+          "association": "contains:drink_version/ingredient",
+          "multiplicity": "0..*",
+          "on_delete": "CASCADE"
+        }
+      ]
+    },
+    "Liked_Ingredient": {
+      "association": "likes:ingredient/user",
+      "cell": [
+        2,
+        3.2
+      ],
+      "columns": [
+        {
+          "name": "username",
+          "type": "VARCHAR(50)",
+          "null": false
+        },
+        {
+          "name": "ingredient_name",
+          "type": "VARCHAR(100)",
+          "null": false
+        }
+      ],
+      "primary_key": [
+        "username",
+        "ingredient_name"
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "username"
+          ],
+          "references": "User",
+          "to": [
+            "username"
+          ],
+          "association": "likes:ingredient/user",
+          "multiplicity": "0..*",
+          "on_delete": "CASCADE"
+        },
+        {
+          "columns": [
+            "ingredient_name"
+          ],
+          "references": "Ingredient",
+          "to": [
+            "name"
+          ],
+          "association": "likes:ingredient/user",
+          "multiplicity": "0..*",
+          "on_delete": "CASCADE"
+        }
+      ]
+    },
+    "Album_Entry": {
+      "class": "includes",
+      "association": "includes:album/drink",
+      "cell": [
+        2,
+        0
+      ],
+      "columns": [
+        {
+          "name": "album_identifier",
+          "type": "INTEGER",
+          "null": false
+        },
+        {
+          "name": "drink_identifier",
+          "type": "INTEGER",
+          "null": false
+        },
+        {
+          "name": "date_of_adding",
+          "type": "DATE",
+          "null": false,
+          "uml": "includes.date_of_adding"
+        }
+      ],
+      "primary_key": [
+        "album_identifier",
+        "drink_identifier"
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "album_identifier"
+          ],
+          "references": "Album",
+          "to": [
+            "identifier"
+          ],
+          "association": "includes:album/drink",
+          "multiplicity": "0..*",
+          "on_delete": "CASCADE"
+        },
+        {
+          "columns": [
+            "drink_identifier"
+          ],
+          "references": "Drink",
+          "to": [
+            "identifier"
+          ],
+          "association": "includes:album/drink",
+          "multiplicity": "0..*",
+          "on_delete": "CASCADE"
+        }
+      ]
+    }
+  }
+}

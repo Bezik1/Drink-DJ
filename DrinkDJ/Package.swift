@@ -4,7 +4,7 @@ import PackageDescription
 // Runs the app's data-model tests on macOS without changing the iOS app target.
 let package = Package(
     name: "DrinkDJModelValidation",
-    platforms: [.macOS(.v15)],
+    platforms: [.iOS(.v17)],
     targets: [
         .target(
             name: "RemixCore",
