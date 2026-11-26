@@ -7,6 +7,9 @@ Project runs on devices with IOS 27 systems (Preferably IPhone 18 Pro).
 ## Specification
 Specification for this project is located inside `./spec` folder.
 
+## Database
+PostgreSQL scripts of the database are located inside `./Database` folder. See `Database/README.md`.
+
 ## Views
 
 ### Mixer View
