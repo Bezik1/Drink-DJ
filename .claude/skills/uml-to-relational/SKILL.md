@@ -93,7 +93,7 @@ It prints the matrix, the ERD, the UML with its checksum and the UML constraints
 ## 2. Draft the model
 
 ```
-python3 <skill>/scripts/uml_to_relational.py draft [spec/conceptual/artifacts/relational_model_diagram.json]
+python3 <skill>/scripts/uml_to_relational.py draft [spec/logical/artifacts/relational_model_diagram.json]
 ```
 
 The default name is `relational_model_diagram`. It stops, when the model exists.
@@ -138,8 +138,8 @@ validation is step 6 of this skill, so do it only once, at the end.
 
 Call the `relational-constraints` skill with the Skill tool and follow it:
 `draft`, review the candidates, `build`, `verify`. It writes
-`spec/conceptual/artifacts/relational_model_constraints.json` and `.docx`, and
-`spec/conceptual/documents/relational_model_constraints.pdf`.
+`spec/logical/artifacts/relational_model_constraints.json` and `.docx`, and
+`spec/logical/documents/relational_model_constraints.pdf`.
 
 ## 6. Validate (always the last step)
 

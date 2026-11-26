@@ -1,7 +1,7 @@
 PATHS = {
     "uml_model": "spec/conceptual/artifacts/uml_class_diagram.json",
-    "artifacts": "spec/conceptual/artifacts",
-    "documents": "spec/conceptual/documents",
+    "artifacts": "spec/logical/artifacts",
+    "documents": "spec/logical/documents",
     "skills": ".claude/skills",
     "scripts": "scripts",
 }

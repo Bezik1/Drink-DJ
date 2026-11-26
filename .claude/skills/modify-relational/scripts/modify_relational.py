@@ -119,7 +119,7 @@ class RelationalWorkbench:
 
     def save(self, path, force=False):
         """
-        Writes the .drawio file in `spec/conceptual/artifacts`.
+        Writes the .drawio file in `spec/logical/artifacts`.
 
         Args:
             path (Path): Path of the JSON model.
