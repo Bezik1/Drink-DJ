@@ -1,6 +1,6 @@
 {
   "relational": {
-    "file": "spec/conceptual/artifacts/relational_model_diagram.json"
+    "file": "spec/logical/artifacts/relational_model_diagram.json"
   },
   "uml_constraints": {
     "file": "spec/conceptual/artifacts/uml_class_diagram_constraints.json",

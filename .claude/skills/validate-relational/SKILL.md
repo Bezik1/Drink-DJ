@@ -21,8 +21,8 @@ python3 <skill>/scripts/validate_relational.py [diagram.drawio] [--model model.j
 ```
 
 Without arguments it checks
-`spec/conceptual/artifacts/relational_model_diagram.drawio`. The model with the
-same name is found next to it, and the PDF in `spec/conceptual/documents/`. The
+`spec/logical/artifacts/relational_model_diagram.drawio`. The model with the
+same name is found next to it, and the PDF in `spec/logical/documents/`. The
 UML is `spec/conceptual/artifacts/uml_class_diagram.json`, with its ERD and the
 matrix `spec/requirements/documents/requirements_matrix.*`. Add `--uml`, `--erd`
 or `--matrix` only when the official file does not exist, and then ask the user.
@@ -68,7 +68,7 @@ Errors, which make the diagram invalid:
   ...) without gaps, every enumeration column has a `domain`, every stored
   derived column a `derivation`, every UNIQUE set a `uniqueness` and every
   `ON DELETE` action a `referential` constraint, the `.docx` contains every
-  constraint, and the PDF is in `spec/conceptual/documents/`.
+  constraint, and the PDF is in `spec/logical/documents/`.
 - **Functional and non-functional requirements** (with a model): the file
   `spec/conceptual/artifacts/requirements_coverage.json` of the
   `requirements-coverage` skill belongs to the current

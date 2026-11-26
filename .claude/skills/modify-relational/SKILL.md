@@ -87,7 +87,7 @@ The script guarantees this. Do not work around it:
 
 ## 1. Find the model
 
-The model is `spec/conceptual/artifacts/<name>.json`, next to the diagram. The
+The model is `spec/logical/artifacts/<name>.json`, next to the diagram. The
 default name is `relational_model_diagram`.
 
 - No model: use `uml-to-relational`.
@@ -214,7 +214,7 @@ from the model.
 python3 <skill>/scripts/modify_relational.py save <model.json>
 ```
 
-It writes `spec/conceptual/artifacts/<name>.drawio`. It stops, when the file was
+It writes `spec/logical/artifacts/<name>.drawio`. It stops, when the file was
 made or edited by someone else (a file of this skill or of the earlier
 `uml-to-relational` script is fine). Use `--force` only after the user agrees.
 
@@ -224,15 +224,15 @@ made or edited by someone else (a file of this skill or of the earlier
    **without** `--crop` and `-b`, because they remove the padding:
 
    ```
-   <drawio> -x -f pdf -a -o spec/conceptual/artifacts/<name>.pdf spec/conceptual/artifacts/<name>.drawio
+   <drawio> -x -f pdf -a -o spec/logical/artifacts/<name>.pdf spec/logical/artifacts/<name>.drawio
    ```
 
-2. Move the PDF to `spec/conceptual/documents/<name>.pdf`. It can replace a PDF
+2. Move the PDF to `spec/logical/documents/<name>.pdf`. It can replace a PDF
    made earlier by this skill. Ask before replacing any other PDF.
 3. Check it, and then open it and look at it:
 
    ```
-   python3 <skill>/scripts/modify_relational.py verify <model.json> --pdf spec/conceptual/documents/<name>.pdf
+   python3 <skill>/scripts/modify_relational.py verify <model.json> --pdf spec/logical/documents/<name>.pdf
    ```
 
 ## 7. Write the constraints

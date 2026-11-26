@@ -1,6 +1,6 @@
 ---
 name: relational-constraints
-description: Writes the constraints, that the requirements need but a relational model diagram cannot show (enumeration values, derivations, UML rules, UNIQUE sets and ON DELETE actions), to a Word file in spec/conceptual/artifacts and a PDF in spec/conceptual/documents, in the same one-table style as the UML constraints. Use as step 5 of uml-to-relational, after a change with modify-relational, when the user asks for the constraints, rules or restrictions of the relational model, or when the relational model or the UML constraints changed.
+description: Writes the constraints, that the requirements need but a relational model diagram cannot show (enumeration values, derivations, UML rules, UNIQUE sets and ON DELETE actions), to a Word file in spec/logical/artifacts and a PDF in spec/logical/documents, in the same one-table style as the UML constraints. Use as step 5 of uml-to-relational, after a change with modify-relational, when the user asks for the constraints, rules or restrictions of the relational model, or when the relational model or the UML constraints changed.
 ---
 
 # Constraints that the relational model cannot show
@@ -49,11 +49,11 @@ The relational model, the UML model and the UML constraints must exist, as
 `uml-to-relational` and `uml-constraints` make them.
 
 ```
-python3 <skill>/scripts/relational_constraints.py draft [--model spec/conceptual/artifacts/relational_model_diagram.json]
+python3 <skill>/scripts/relational_constraints.py draft [--model spec/logical/artifacts/relational_model_diagram.json]
 ```
 
-The files are `spec/conceptual/artifacts/relational_model_constraints.json`,
-`.docx` and `spec/conceptual/documents/relational_model_constraints.pdf` (the
+The files are `spec/logical/artifacts/relational_model_constraints.json`,
+`.docx` and `spec/logical/documents/relational_model_constraints.pdf` (the
 name of the model without `_diagram`). The draft takes:
 
 - a `domain` with the values of every enumeration, for all its columns, with
@@ -76,12 +76,12 @@ It stops when the file exists. Use `--force` only after the user agrees.
 Read the file with `show`, and change the JSON:
 
 ```
-python3 <skill>/scripts/relational_constraints.py show spec/conceptual/artifacts/relational_model_constraints.json
+python3 <skill>/scripts/relational_constraints.py show spec/logical/artifacts/relational_model_constraints.json
 ```
 
 ```json
 {
-  "relational": {"file": "spec/conceptual/artifacts/relational_model_diagram.json"},
+  "relational": {"file": "spec/logical/artifacts/relational_model_diagram.json"},
   "uml_constraints": {"file": "spec/conceptual/artifacts/uml_class_diagram_constraints.json", "sha256": "<checksum>"},
   "covered": {"C01": "The primary key of Route_Sequence shows it."},
   "constraints": [
@@ -117,11 +117,11 @@ python3 <skill>/scripts/relational_constraints.py show spec/conceptual/artifacts
 ## 3. Build
 
 ```
-python3 <skill>/scripts/relational_constraints.py build spec/conceptual/artifacts/relational_model_constraints.json
+python3 <skill>/scripts/relational_constraints.py build spec/logical/artifacts/relational_model_constraints.json
 ```
 
 It writes the `.docx` next to the JSON with the `modify-word` skill and the PDF
-in `spec/conceptual/documents` with the `docx-to-pdf` skill. The document has
+in `spec/logical/documents` with the `docx-to-pdf` skill. The document has
 **only one table**, without a title or any other text: id, tables ("All tables"
 for `*`), constraint and requirements. It has the look of the requirements
 matrix: landscape A4, Arial, black text, bordered table with a bold header. Do
@@ -131,7 +131,7 @@ user agrees to `--force`.
 ## 4. Verify
 
 ```
-python3 <skill>/scripts/relational_constraints.py verify <constraints.json> --pdf spec/conceptual/documents/relational_model_constraints.pdf
+python3 <skill>/scripts/relational_constraints.py verify <constraints.json> --pdf spec/logical/documents/relational_model_constraints.pdf
 ```
 
 Then open the PDF and look at it. The whole relational model is validated by
